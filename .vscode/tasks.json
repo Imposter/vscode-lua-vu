@@ -1,0 +1,29 @@
+// Available variables which can be used inside of strings.
+// ${workspaceRoot}: the root folder of the team
+// ${file}: the current opened file
+// ${fileBasename}: the current opened file's basename
+// ${fileDirname}: the current opened file's dirname
+// ${fileExtname}: the current opened file's extension
+// ${cwd}: the current working directory of the spawned process
+
+{
+	"version": "2.0.0",
+	"tasks": [
+        {
+            "type": "npm",
+            "script": "build",
+            "group": "build",
+            "problemMatcher": [],
+            "label": "npm: build",
+            "detail": "npm run copy && npm run compile"
+        }
+    ],
+
+    // VSCode Extension stuff
+    "command": "npm",
+    "type": "shell", // the command is a shell script    
+    "presentation": { "reveal": "silent" }, // show the output window only if unrecognized errors occur.    
+    "args": ["run", "build", "--loglevel", "silent"], // we run the custom script "build" as defined in package.json     
+    "isBackground": true, // The tsc compiler is started in watching mode    
+    "problemMatcher": "$tsc-watch" // use the standard tsc in watch mode problem matcher to find compile problems in the output.
+}
