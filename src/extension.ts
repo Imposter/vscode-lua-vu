@@ -69,7 +69,7 @@ async function onDidDeleteFiles(e: FileDeleteEvent) {
         let componentPath = folder.uri.fsPath;
         let imPath = join(componentPath, '.vu', 'intermediate');
 
-        // Ignore rename if the file was an intermediate file
+        // Ignore delete if the file was an intermediate file
         if (isSubPath(file.fsPath, imPath))
             continue;
         
@@ -148,7 +148,7 @@ async function onDidChangeTextDocument(e: TextDocumentChangeEvent) {
     if (!build) return;
 
     // Generate code
-    generateIntermediateCode(folder, e.document.uri.fsPath, e.document.getText());
+    await generateIntermediateCode(folder, e.document.uri.fsPath, e.document.getText());
 }
 
 async function generateIntermediateCode(folder: WorkspaceFolder, path: string, content: string) {

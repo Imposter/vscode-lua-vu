@@ -2,16 +2,16 @@
     "name": "vscode-lua-vu",
     "displayName": "Venice Unleashed (Lua)",
     "description": "A Visual Studio Code extension for Venice Unleashed Lua functionality",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "publisher": "Imposter",
-    "icon": "logo.png",
+    "icon": "VuaIcon.png",
     "repository": {
         "type": "git",
         "url": "https://github.com/Imposter/vscode-lua-vu"
     },
     "license": "MIT",
     "engines": {
-        "vscode": "^1.33.0"
+        "vscode": "^1.43.0"
     },
     "categories": [
         "Programming Languages"

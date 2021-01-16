@@ -1,7 +1,19 @@
 # Change Log
-All notable changes to the "demolang" extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+## 0.2.3
 
-## [Unreleased]
-- Initial release
+Pre-release
+
+- Correctly handle documentation comments
+- Generate multiline doc comments correctly
+- Correctly generate variadic arguments for functions in stub generator
+
+## 0.2.2
+
+Initial public pre-release of the extension.
+
+- User type generation
+- VU doc stub generation
+- Project support
+- Type caching
+- Documentation support

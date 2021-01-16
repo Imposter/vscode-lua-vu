@@ -125,7 +125,7 @@ function generateDocParam(name: string, p: IDocParam) {
 
     // variadic arguments are specified differently
     if (p.variadic) {
-        code += `---@letarg ${_LT(p.type)}`;
+        code += `---@vararg ${_LT(p.type)}`;
     } else {
         // Write param doc comment
         code += `---@param ${name} `;
@@ -179,6 +179,27 @@ function generateDocReturn(r: IDocType, comments?: string[]) {
     return code;
 }
 
+function generateFuncStub(name: string, params: { [name: string]: IDocParam }) {
+    // Open func
+    var code = `function ${name}(`;
+    
+    // Generate parameter code
+    let names = Object.keys(params);
+    for (let i = 0; i < names.length; i++) {
+        let name = names[i];
+        let param = params[name];
+
+        if (param.variadic) code += '...';
+        else code += name;
+        if (i != names.length - 1) code += ', ';
+    }
+    
+    // Close func
+    code += `) end`;
+
+    return code;
+}
+
 function generateConstructor(name: string, c: IDocConstructor, comments?: string[]) {
     let code = ``;
 
@@ -207,7 +228,7 @@ function generateConstructor(name: string, c: IDocConstructor, comments?: string
     code += generateDocReturn({ type: name }) + EOL;
 
     // Write function stub
-    code += `function ${name}(${Object.keys(c?.params || {}).join(', ')}) end`;
+    code += generateFuncStub(name, c?.params || {});
 
     return code;
 }
@@ -238,7 +259,7 @@ function generateMethod(name: string, m: IDocMethod, comments?: string[]) {
     }
 
     // Write function stub
-    code += `function ${name}:${m.name}(${Object.keys(m?.params || {}).join(', ')}) end`;
+    code += generateFuncStub(`${name}:${m.name}`, m?.params || {});
 
     return code;
 }
