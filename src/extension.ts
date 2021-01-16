@@ -494,14 +494,14 @@ export async function activate(context: ExtensionContext) {
     let changeDisposable = workspace.onDidChangeTextDocument(throttle(1000 / INTERMEDIATE_BUILD_FREQUENCY, false, onDidChangeTextDocument));
 
     // Register command to show the quick pick above
-    let menuCommandDisposable = commands.registerCommand('imposter.vu.lua.showMenu', () => { showActionMenu(); });
+    let menuCommandDisposable = commands.registerCommand('imposter.vscode-lua-vu.showMenu', () => { showActionMenu(); });
 
     // Add status bar button for actions
     let statusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 100);
     statusBarItem.text = 'VU.Lua';
     statusBarItem.tooltip = 'Lua helper extension for Venice Unleashed';
     statusBarItem.color = '#00c3ff';
-    statusBarItem.command = 'imposter.vu.lua.showMenu';
+    statusBarItem.command = 'imposter.vscode-lua-vu.showMenu';
 
     // Show status bar item
     statusBarItem.show();
