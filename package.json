@@ -2,7 +2,7 @@
     "name": "vscode-lua-vu",
     "displayName": "Venice Unleashed (Lua)",
     "description": "A Visual Studio Code extension for Venice Unleashed Lua functionality",
-    "version": "0.2.4",
+    "version": "0.2.3",
     "publisher": "Imposter",
     "icon": "VuaIcon.png",
     "repository": {
@@ -52,7 +52,6 @@
         "test": "mocha --require ts-node/register --timeout 3600000 test/**/*.test.ts"
     },
     "devDependencies": {
-        "@microsoft/vscode-file-downloader-api": "^1.0.1",
         "@types/fs-extra": "^9.0.6",
         "@types/glob": "^7.1.3",
         "@types/js-yaml": "^4.0.0",
@@ -66,14 +65,12 @@
         "typescript": "^3.8.3"
     },
     "dependencies": {
-        "@types/squirrelly": "^7.1.1",
+        "@microsoft/vscode-file-downloader-api": "^1.0.1",
         "antlr4ts": "^0.5.0-alpha.4",
-        "blueimp-tmpl": "^3.19.0",
         "fs-extra": "^9.0.1",
         "glob": "^7.1.6",
         "js-yaml": "^4.0.0",
         "recursive-copy": "^2.0.11",
-        "throttle-debounce": "^3.0.1",
-        "vscode-languageclient": "^6.1.3"
+        "throttle-debounce": "^3.0.1"
     }
 }

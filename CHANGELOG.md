@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.2.5
+
+Pre-release
+
+- Update package dependencies to include @microsoft/vscode-file-downloader-api as a dependency rather than a dev dependency
+- Removed unused package dependencies
+
 ## 0.2.4
 
 Pre-release
