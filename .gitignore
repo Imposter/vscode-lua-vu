@@ -2,3 +2,4 @@ out
 node_modules
 src/code-gen/parser/.antlr
 src/code-gen/parser/generated
+priv
