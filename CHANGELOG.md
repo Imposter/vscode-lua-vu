@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.2.4
+
+Pre-release
+
+- Update VSCode builds
+
 ## 0.2.3
 
 Pre-release
