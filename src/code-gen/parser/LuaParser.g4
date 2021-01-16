@@ -61,31 +61,39 @@ statComment
 
 // Doc strings (additional)
 statDocDesc
-    : DOC_TEXT_START content=DOC_TEXT DOC_TEXT_END
+    : DOC_TEXT_START content=DOC_TEXT? DOC_TEXT_END
+    ;
+
+statDocStart
+    : DOC_START
+    ;
+
+statDocComment
+    : ((DOC_COMMENT_START content=DOC_TEXT? DOC_TEXT_END) | DOC_END)
     ;
 
 statDocClass
-    : DOC_START CLASS name=NAME (COLON base=NAME)? (DOC_TEXT_START comment=DOC_TEXT DOC_TEXT_END)?
+    : statDocStart DOC_CLASS name=DOC_NAME (COLON base=DOC_NAME)? statDocComment
     ;
 
 statDocField
-    : DOC_START FIELD name=NAME type=NAME (DOC_TEXT_START comment=DOC_TEXT DOC_TEXT_END)?
+    : statDocStart DOC_FIELD name=DOC_NAME type=expDoc statDocComment
     ;
 
 statDocParam
-    : DOC_START PARAM name=NAME type=NAME (DOC_TEXT_START comment=DOC_TEXT DOC_TEXT_END)?
+    : statDocStart DOC_PARAM name=DOC_NAME type=expDoc statDocComment
     ;
 
 statDocVarArg
-    : DOC_START VARARG type=NAME (DOC_TEXT_START comment=DOC_TEXT DOC_TEXT_END)?
+    : statDocStart DOC_VARARG type=DOC_NAME statDocComment
     ;
 
 statDocReturn
-    : DOC_START RETURN types=expDocList (DOC_TEXT_START comment=DOC_TEXT DOC_TEXT_END)?
+    : statDocStart DOC_RETURN types=expDocList statDocComment
     ;
 
 statDocType
-    : DOC_START TYPE types=expDoc (DOC_TEXT_START comment=DOC_TEXT DOC_TEXT_END)?
+    : statDocStart DOC_TYPE types=expDoc statDocComment
     ;
 
 expDocList
@@ -93,8 +101,7 @@ expDocList
     ;
 
 expDoc
-    : NAME
-    | NAME operatorOr NAME
+    : DOC_NAME (DOC_OR DOC_NAME)*
     ;
 
 // Lua + Middleclass spec

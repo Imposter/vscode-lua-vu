@@ -101,10 +101,10 @@ class LuaChunkListener implements LuaParserListener {
 
                     if (param.variadic && v) {
                         param.type = v._type.text as string;
-                        param.description = v._comment?.text;
+                        param.description = v.statDocComment()._content?.text;
                     } else if (ps.length > 0) {
                         param.type = ps[0]._type.text as string;
-                        param.description = ps[0]._comment?.text;
+                        param.description = ps[0].statDocComment()._content?.text;
                     }
                 }                
 
@@ -148,16 +148,19 @@ function generateClass(c: LuaClass) {
     return generateSection('Class', () => {
         let code = '';
 
-        // Define class object if one hasn't been defined
-        if (!c.global) {
-            code += `${c.name} = {}` + EOL + EOL;
-        }
-
-        // TODO: Store properties in Class = { the props go here }
+        // Skip local classes, if the user defines them as local
+        // we shouldn't have access to the class in our global context
+        // unless it's imported, in which case it should've just been a
+        // table or static functions
+        if (!c.global) return code;
 
         // Generate constructors
         for (let constructor of c.constructors) {
-            code += constructor.description + EOL;
+            // Add constructor description
+            if (constructor.description) {
+                code += constructor.description.join('') + EOL;
+            }
+            
             for (let param of constructor.params) {
                 // Create parameter docstring
                 if (param.variadic) {

@@ -73,12 +73,6 @@ WHILE: 'while';
 
 CLASS: 'class'; // Middleclass class support
 
-// Documentation
-FIELD: 'field';
-PARAM: 'param';
-TYPE: 'type';
-VARARG: 'vararg';
-
 /* Tokens */
 ADD: '+';
 SUB: '-';
@@ -227,12 +221,39 @@ WS
     : [ \t\f\r\n]+ -> skip
     ;
 
+// Documentation
 DOC_START
-    : '---@'
+    : '---@' -> pushMode(DOC_MODE)
     ;
 
 DOC_TEXT_START
-    : ('---' | '@') -> pushMode(DOC_TEXT_MODE)
+    : '---' -> pushMode(DOC_TEXT_MODE)
+    ;
+
+mode DOC_MODE;
+
+DOC_CLASS: 'class';
+DOC_FIELD: 'field';
+DOC_PARAM: 'param';
+DOC_RETURN: 'return';
+DOC_TYPE: 'type';
+DOC_VARARG: 'vararg';
+DOC_OR: '|';
+
+DOC_WS
+    : [ \t\f]+ -> skip
+    ;
+
+DOC_NAME
+    : NAME
+    ;
+
+DOC_END
+    : ('\r\n'|'\r'|'\n') -> mode(DEFAULT_MODE)
+    ;
+
+DOC_COMMENT_START
+    : '@' -> pushMode(DOC_TEXT_MODE)
     ;
 
 mode DOC_TEXT_MODE;
@@ -242,5 +263,5 @@ DOC_TEXT
     ;
     
 DOC_TEXT_END
-    : ('\r\n'|'\r'|'\n') -> popMode
+    : ('\r\n'|'\r'|'\n') -> mode(DEFAULT_MODE)
     ;
