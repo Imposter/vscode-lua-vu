@@ -2,7 +2,7 @@
     "name": "vscode-lua-vu",
     "displayName": "Vua",
     "description": "An unofficial Visual Studio Code extension for Venice Unleashed Lua functionality",
-    "version": "0.2.6",
+    "version": "0.2.7",
     "publisher": "Imposter",
     "icon": "VuaIcon.png",
     "repository": {
@@ -17,15 +17,15 @@
         "Programming Languages"
     ],
     "activationEvents": [
-        "onCommand:imposter.vscode-lua-vu.showMenu",
+        "onCommand:vua.showMenu",
         "onLanguage:lua"
     ],
     "main": "./out/src/extension",
     "contributes": {
         "commands": [
             {
-                "command": "imposter.vscode-lua-vu.showMenu",
-                "title": "VU.Lua Commands"
+                "command": "vua.showMenu",
+                "title": "Vua Commands"
             }
         ],
         "languages": [
@@ -38,7 +38,18 @@
                     ".lua"
                 ]
             }
-        ]
+        ],
+        "configuration": {
+            "type": "object",
+            "title": "Vua",
+            "properties": {
+                "vua.generation.forceGlobal": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Forcefully define classes in a global context. This allows you to define classes as `class('MyObject')` rather than `MyObject = class('MyObject')` and have full type information generated for them"
+                }
+            }
+        }
     },
     "extensionDependencies": [
         "sumneko.lua",

@@ -24,7 +24,7 @@ import { EOL } from 'os';
 import { throttle } from 'throttle-debounce';
 import { getApi } from '@microsoft/vscode-file-downloader-api';
 import { generate as generateStubs } from './stub-gen/generator';
-import { generate as generateCode } from './code-gen/generator';
+import { generate as generateCode, GenerationConfig } from './code-gen/generator';
 
 const globAsync = promisify(glob);
 
@@ -161,9 +161,13 @@ async function generateIntermediateCode(folder: WorkspaceFolder, path: string, c
     // Get a relative path to the file from the component root
     let relPath = relative(componentPath, path);
     
+    // Get configuration for code generation
+    let configuration = workspace.getConfiguration();
+    let generationConfig = configuration.get<GenerationConfig>('vua.generation');
+    
     try {
         // Generate the code
-        await generateCode(imPath, relPath, content);
+        await generateCode(imPath, relPath, content, generationConfig);
     } catch (error) {
         // Ignore errors
     }
@@ -342,7 +346,50 @@ async function newProject() {
                 await fs.writeFile(modPath, JSON.stringify(mod, null, 4));
             
                 // Open the workspace
-                commands.executeCommand('vscode.openFolder', Uri.parse(projectPath)); // TODO: Fix this, it does not work
+                commands.executeCommand('vscode.openFolder', Uri.file(projectPath));
+
+                resolve();
+            } catch (error) {
+                reject(error);
+            }
+        });
+    });
+}
+
+async function updateProject() {
+    // See if the types have already been downloaded and generated
+    let extPath = mainContext.globalStorageUri.fsPath;
+    let dataPath = join(extPath, 'data');
+    if (!existsSync(join(dataPath, '.complete'))) {
+        window.showErrorMessage('VU content has not been downloaded. Please download it first.');
+        return;
+    }
+
+    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+        window.showErrorMessage('A project workspace is not open');
+        return;
+    }
+
+    let path = dirname(workspace.workspaceFile.fsPath);
+    await window.withProgress({
+        location: ProgressLocation.Notification,
+        title: 'Updating project',
+        cancellable: false
+    }, () => {
+        return new Promise<void>(async (resolve, reject) => {
+            try {
+                // Copy the required libraries for each component of the mod
+                for (let [name, libs] of Object.entries(MOD_COMPONENTS)) {
+                    let componentPath = join(path, 'ext', name);
+
+                    // Remove local copy of the libs and update them
+                    for (let lib of libs) {
+                        let targetLibPath = join(componentPath, '.vu', lib);
+
+                        await fs.rmdir(targetLibPath, { recursive: true });
+                        await copy(join(dataPath, lib), targetLibPath);
+                    }
+                }
 
                 resolve();
             } catch (error) {
@@ -383,6 +430,10 @@ async function rebuildIntermediate(path?: string) {
         path = dirname(workspace.workspaceFile.fsPath);
     }
 
+    // Get configuration for code generation
+    let configuration = workspace.getConfiguration();
+    let generationConfig = configuration.get<GenerationConfig>('vua.generation');
+
     // Copy the required libraries for each component of the mod
     for (let component of Object.keys(MOD_COMPONENTS)) {
         let componentPath = join(path, 'ext', component);
@@ -417,7 +468,7 @@ async function rebuildIntermediate(path?: string) {
                         let content = buffer.toString();
 
                         let relPath = relative(componentPath, file);
-                        await generateCode(imPath, relPath, content); // TODO: Make a submodule for the lexer/parser grammar code
+                        await generateCode(imPath, relPath, content, generationConfig);
 
                         progress.report({ message: `Done ${relPath}`, increment: increment });
                     }
@@ -435,7 +486,7 @@ async function rebuildIntermediate(path?: string) {
 
 function showActionMenu() {
     let quickPick = window.createQuickPick<ActionItem>();
-    quickPick.title = 'VU.Lua Actions';
+    quickPick.title = 'Vua Actions';
     quickPick.placeholder = 'Type to select an action';
     quickPick.items = [
         {
@@ -443,6 +494,12 @@ function showActionMenu() {
             label: 'Create New Project',
             description: 'Creates a new project with the pre-prepared mod template',
             callback: newProject
+        },
+        {
+            id: 'update_project',
+            label: 'Update Project',
+            description: 'Updates the current project with the latest VU types and support libraries',
+            callback: updateProject
         },
         {
             id: 'download_content',
@@ -494,14 +551,14 @@ export async function activate(context: ExtensionContext) {
     let changeDisposable = workspace.onDidChangeTextDocument(throttle(1000 / INTERMEDIATE_BUILD_FREQUENCY, false, onDidChangeTextDocument));
 
     // Register command to show the quick pick above
-    let menuCommandDisposable = commands.registerCommand('imposter.vscode-lua-vu.showMenu', () => { showActionMenu(); });
+    let menuCommandDisposable = commands.registerCommand('vua.showMenu', () => { showActionMenu(); });
 
     // Add status bar button for actions
     let statusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 100);
-    statusBarItem.text = 'VU.Lua';
+    statusBarItem.text = 'Vua';
     statusBarItem.tooltip = 'Lua helper extension for Venice Unleashed';
     statusBarItem.color = '#00c3ff';
-    statusBarItem.command = 'imposter.vscode-lua-vu.showMenu';
+    statusBarItem.command = 'vua.showMenu';
 
     // Show status bar item
     statusBarItem.show();
@@ -516,7 +573,7 @@ export async function activate(context: ExtensionContext) {
         }
     }
 
-    window.setStatusBarMessage('VU.Lua is ready!', 5000);
+    window.setStatusBarMessage('Vua is ready!', 5000);
 
     // Push disposables
     context.subscriptions.push(menuCommandDisposable);

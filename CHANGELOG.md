@@ -1,5 +1,19 @@
 # Change Log
 
+## 0.2.7
+
+Pre-release
+
+- Open new project correctly
+- Implemented code generation configuration, allowing users to force class definitions to the global scope for intellisense
+- Added support for updating project types/support libraries with latest ones from their respective git repositories
+
+## 0.2.6
+
+Pre-release
+
+- Update extension name and version
+
 ## 0.2.5
 
 Pre-release

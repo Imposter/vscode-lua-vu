@@ -6,6 +6,10 @@ import { EOL } from 'os';
 
 import { LuaLexer, LuaParser, LuaParserListener, StatClassContext, StatFunctionContext } from './parser';
 
+export interface GenerationConfig {
+    forceGlobal: boolean;
+}
+
 interface LuaParam {
     name: string;
     type: string;
@@ -24,6 +28,10 @@ interface LuaClass {
     constructors: LuaConstructor[];
     global?: boolean; // Indicates whether or not a variable with the class name has already been defined in the global scope
 }
+
+const DEFAULT_CONFIG: GenerationConfig = {
+    forceGlobal: false
+};
 
 class LuaChunkListener implements LuaParserListener {
     private _classes: { [name: string]: LuaClass };
@@ -144,7 +152,7 @@ function generateSection(name: string, callback: () => string) {
     return code;
 }
 
-function generateClass(c: LuaClass) {
+function generateClass(c: LuaClass, config: GenerationConfig) {
     return generateSection('Class', () => {
         let code = '';
 
@@ -152,7 +160,9 @@ function generateClass(c: LuaClass) {
         // we shouldn't have access to the class in our global context
         // unless it's imported, in which case it should've just been a
         // table or static functions
-        if (!c.global) return code;
+        // The forceGlobal flag allows definitions such as `class 'MyObject'` 
+        // rather than only `MyObject = class 'MyObject'`
+        if (!config.forceGlobal && !c.global) return code;
 
         // Generate constructors
         for (let constructor of c.constructors) {
@@ -213,7 +223,10 @@ async function parseFile(content: string): Promise<{ [name: string]: LuaClass }>
     return listener.getClasses();
 }
 
-export async function generate(outPath: string, filePath: string, content: string) {
+export async function generate(outPath: string, filePath: string, content: string, config?: GenerationConfig) {
+    // Merge configs
+    config = { ...DEFAULT_CONFIG, ...config };
+
     // Parse content
     let classes = await parseFile(content);
 
@@ -222,7 +235,7 @@ export async function generate(outPath: string, filePath: string, content: strin
     code += generateHeader(filePath) + EOL + EOL;
     for (let [name, c] of Object.entries(classes)) {
         console.log(`Generating code for class ${name} in ${filePath}...`);
-        code += generateClass(c) + EOL + EOL;
+        code += generateClass(c, config); + EOL + EOL;
     }
 
     // Write output file

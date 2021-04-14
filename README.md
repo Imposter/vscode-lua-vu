@@ -2,14 +2,14 @@
     <img src="https://github.com/Imposter/vscode-lua-vu/raw/master/VuaLight.png" alt="logo" width="200">
 </p>
 
-# Vua (VU.Lua)
+# Vua
 
 This is a Visual Studio Code extension providing Venice Unleashed type information and intermediate code generation to make mod development less tedious. It utilizes [Sumneko](https://github.com/sumneko)'s Lua extension for VS Code and adds an additional parser to read documentation from user code and generate intermediate code files to help the IntelliSense engine work with how classes and functions are defined in VU.
 
 ## Usage
 
 - Install the extension
-- Find `VU.Lua Commands` command menu and then download and build the project templates and VU doc types using the `Download and Build Content` command
+- Find `Vua Commands` command menu and then download and build the project templates and VU doc types using the `Download and Build Content` command
 - Create a new project by providing a name and a path using the `Create New Project` command
 - Write your code and enjoy type information
 
@@ -34,6 +34,7 @@ The following are the supported and planned features for this extension:
   - [x] Return
   - [x] Type
   - [ ] See (reference)
+- [ ] Support for snippet generation
 
 ## Examples
 
