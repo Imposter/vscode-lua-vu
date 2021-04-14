@@ -28,6 +28,10 @@ import { generate as generateCode, GenerationConfig } from './code-gen/generator
 
 const globAsync = promisify(glob);
 
+interface InterfaceConfig {
+    showErrors: boolean;
+}
+
 interface GitHubRepository {
     user: string;
     name: string;
@@ -163,13 +167,18 @@ async function generateIntermediateCode(folder: WorkspaceFolder, path: string, c
     
     // Get configuration for code generation
     let configuration = workspace.getConfiguration();
+    let interfaceConfig = configuration.get<InterfaceConfig>('vua.interface');
     let generationConfig = configuration.get<GenerationConfig>('vua.generation');
+    if (!interfaceConfig || !generationConfig) return;
     
     try {
         // Generate the code
         await generateCode(imPath, relPath, content, generationConfig);
     } catch (error) {
-        // Ignore errors
+        // Show error if required
+        if (interfaceConfig.showErrors) {
+            window.showErrorMessage(`Error analyzing file ${relPath} | ${error}`);
+        }
     }
 }
 
@@ -430,10 +439,6 @@ async function rebuildIntermediate(path?: string) {
         path = dirname(workspace.workspaceFile.fsPath);
     }
 
-    // Get configuration for code generation
-    let configuration = workspace.getConfiguration();
-    let generationConfig = configuration.get<GenerationConfig>('vua.generation');
-
     // Copy the required libraries for each component of the mod
     for (let component of Object.keys(MOD_COMPONENTS)) {
         let componentPath = join(path, 'ext', component);
@@ -445,6 +450,11 @@ async function rebuildIntermediate(path?: string) {
             cancellable: true
         }, (progress, token) => {
             return new Promise<void>(async (resolve, reject) => {
+                // Get configuration for code generation
+                let configuration = workspace.getConfiguration();
+                let generationConfig = configuration.get<GenerationConfig>('vua.generation');
+                if (!generationConfig) return;
+
                 // Delete any intermediate files
                 let imPath = join(componentPath, '.vu', 'intermediate');
                 if (existsSync(imPath))
@@ -461,8 +471,9 @@ async function rebuildIntermediate(path?: string) {
                 progress.report({ message: 'Starting...' });
 
                 // Generate intermediate files for them
+                let file = '';
                 try {
-                    for (let file of luaFiles) {
+                    for (file of luaFiles) {
                         // Read file
                         let buffer = await fs.readFile(file);
                         let content = buffer.toString();
@@ -477,7 +488,7 @@ async function rebuildIntermediate(path?: string) {
                     resolve();
                 } catch (error) {
                     // If a failure happened while generating code, report it and return
-                    reject(`An error occurred while building intermediate types for component ${component}. IntelliSense may not work correctly. ${error}`);
+                    reject(`An error occurred while building intermediate types for component ${component}. IntelliSense may not work correctly. File: ${file}. ${error}`);
                 }
             });
         });

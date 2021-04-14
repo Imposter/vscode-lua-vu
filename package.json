@@ -2,7 +2,7 @@
     "name": "vscode-lua-vu",
     "displayName": "Vua",
     "description": "An unofficial Visual Studio Code extension for Venice Unleashed Lua functionality",
-    "version": "0.2.7",
+    "version": "0.2.8",
     "publisher": "Imposter",
     "icon": "VuaIcon.png",
     "repository": {
@@ -43,9 +43,14 @@
             "type": "object",
             "title": "Vua",
             "properties": {
-                "vua.generation.forceGlobal": {
+                "vua.interface.showErrors": {
                     "type": "boolean",
                     "default": false,
+                    "description": "Show intermediate file errors when a file has bad syntax and cannot be generated. You can get the same functionality when rebuilding intermediate files."
+                },
+                "vua.generation.forceGlobal": {
+                    "type": "boolean",
+                    "default": true,
                     "markdownDescription": "Forcefully define classes in a global context. This allows you to define classes as `class('MyObject')` rather than `MyObject = class('MyObject')` and have full type information generated for them"
                 }
             }

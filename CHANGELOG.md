@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.2.8
+
+Pre-release
+
+- Added better error messages for intermediate file errors
+
 ## 0.2.7
 
 Pre-release

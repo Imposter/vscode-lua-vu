@@ -29,10 +29,6 @@ interface LuaClass {
     global?: boolean; // Indicates whether or not a variable with the class name has already been defined in the global scope
 }
 
-const DEFAULT_CONFIG: GenerationConfig = {
-    forceGlobal: false
-};
-
 class LuaChunkListener implements LuaParserListener {
     private _classes: { [name: string]: LuaClass };
 
@@ -223,10 +219,7 @@ async function parseFile(content: string): Promise<{ [name: string]: LuaClass }>
     return listener.getClasses();
 }
 
-export async function generate(outPath: string, filePath: string, content: string, config?: GenerationConfig) {
-    // Merge configs
-    config = { ...DEFAULT_CONFIG, ...config };
-
+export async function generate(outPath: string, filePath: string, content: string, config: GenerationConfig) {
     // Parse content
     let classes = await parseFile(content);
 
