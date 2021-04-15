@@ -1,6 +1,6 @@
 import { ParserErrorListener, CharStreams, CommonTokenStream, Recognizer, RecognitionException, Token } from 'antlr4ts';
 import { ParseTreeListener, ParseTreeWalker } from 'antlr4ts/tree';
-import { promises as fs } from 'fs';
+import { outputFile } from 'fs-extra';
 import { join } from 'path';
 import { EOL } from 'os';
 
@@ -232,5 +232,5 @@ export async function generate(outPath: string, filePath: string, content: strin
     }
 
     // Write output file
-    await fs.writeFile(join(outPath, filePath), code);
+    await outputFile(join(outPath, filePath), code);
 }
