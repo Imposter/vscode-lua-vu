@@ -206,7 +206,13 @@ BLOCK_COMMENT
 
 fragment
 LINE_COMMENT
-    : '--' ~('-'|'[') ~('['|'\r'|'\n')* ('\r\n'|'\r'|'\n')?
+    : '--'
+    ~'-'                                            // Ignore doc comments
+    (                                               // --
+    | '[' '='*                                      // --[==
+    | '[' '='* ~('='|'['|'\r'|'\n') ~('\r'|'\n')*   // --[==AA
+    | ~('['|'\r'|'\n') ~('\r'|'\n')*                // --AAA
+    ) ('\r\n'|'\r'|'\n'|EOF)
     ;
 
 SHEBANG
@@ -242,6 +248,10 @@ DOC_OR: '|';
 
 DOC_WS
     : [ \t\f]+ -> skip
+    ;
+
+DOC_COLON
+    : COLON
     ;
 
 DOC_NAME

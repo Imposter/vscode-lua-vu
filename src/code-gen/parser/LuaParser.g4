@@ -73,7 +73,7 @@ statDocComment
     ;
 
 statDocClass
-    : statDocStart DOC_CLASS name=DOC_NAME (COLON base=DOC_NAME)? statDocComment
+    : statDocStart DOC_CLASS name=DOC_NAME (DOC_COLON base=DOC_NAME)? statDocComment
     ;
 
 statDocField
@@ -123,7 +123,7 @@ statClassDef
     ;
 
 statClass
-    : docDesc=statDocDesc* docClass=statDocClass docFields=statDocField* def=statClassDef
+    : docDesc=statDocDesc* docClass=statDocClass? docFields=statDocField* def=statClassDef
     ;
 
 statFunctionDef

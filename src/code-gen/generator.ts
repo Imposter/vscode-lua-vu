@@ -27,6 +27,7 @@ interface LuaClass {
     inherits?: string;
     constructors: LuaConstructor[];
     global?: boolean; // Indicates whether or not a variable with the class name has already been defined in the global scope
+    hasComment: boolean; // Used to determine whether the class has an existing @class comment or not
 }
 
 class LuaChunkListener implements LuaParserListener {
@@ -46,10 +47,11 @@ class LuaChunkListener implements LuaParserListener {
 
         // Create a new instance of the class
         let _class = {
-            name: ctx.statDocClass()._name.text as string,
-            inherits: ctx.statDocClass()._base?.text,
+            name: def._name.text.slice(1, -1), // Remove quotes from the string
+            inherits: def._base?.text,
             constructors: [],
-            global:  def._varName && !def.LOCAL()
+            global: def._varName && !def.LOCAL(),
+            hasComment: ctx.statDocClass() != null
         };
 
         this._classes[_class.name] = _class;
@@ -81,7 +83,7 @@ class LuaChunkListener implements LuaParserListener {
                     if (nameList) {
                         for (let node of nameList.NAME()) {
                             params.push({
-                                name: node.text as string,
+                                name: node.text,
                                 type: 'any'
                             });
                         }
@@ -159,6 +161,13 @@ function generateClass(c: LuaClass, config: GenerationConfig) {
         // The forceGlobal flag allows definitions such as `class 'MyObject'` 
         // rather than only `MyObject = class 'MyObject'`
         if (!config.forceGlobal && !c.global) return code;
+
+        // Create an empty 'class' object if the user defined class does not have a comment above it
+        if (!c.hasComment) {
+            code += `---@class ${c.name}` + EOL;
+            if (!c.global) code += 'local ';
+            code += `${c.name} = {}` + EOL;
+        }
 
         // Generate constructors
         for (let constructor of c.constructors) {
