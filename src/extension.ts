@@ -272,7 +272,7 @@ async function prepareContent(): Promise<string> {
                     await fs.rmdir(dataPath, { recursive: true });
 
                 await fs.rename(tempDataPath, dataPath);
-                await fs.writeFile(join(dataPath, '.complete'), {});
+                await fs.writeFile(join(dataPath, '.complete'), '');
 
                 // Return the data path
                 resolve(dataPath);
@@ -306,15 +306,14 @@ async function newProject() {
     }
 
     // Ask for a project path
+    let placeholderPath = workspace.workspaceFolders && workspace.workspaceFolders.length ? workspace.workspaceFolders[0].uri.fsPath : '';
     let path = await window.showInputBox({
         prompt: 'Project path',
-        placeHolder: workspace.workspaceFolders ? workspace.workspaceFolders[0].uri.fsPath : ''
+        placeHolder: placeholderPath
     }) as string;
 
-    if (path == null) return;
-    if (path.trim().length == 0) {
-        window.showErrorMessage(`Invalid project path`);
-        return;
+    if (path == null || path.length == 0) {
+        path = placeholderPath;
     }
 
     // Ensure the project doesn't exist already
@@ -331,11 +330,19 @@ async function newProject() {
     }, () => {
         return new Promise<void>(async (resolve, reject) => {
             try {
-                // Make a new directory at the target path
-                await fs.mkdir(path, { recursive: true });
+                // Check if code already exists at the path
+                var codeExists = existsSync(path);
+
+                // Check if the path exists
+                if (!codeExists) {
+                    // Make a new directory at the target path
+                    await fs.mkdir(path, { recursive: true });
+                }     
 
                 // Copy the template files, types and libs to the specified path
-                await copy(join(dataPath, 'template'), path);
+                await copy(join(dataPath, 'template'), path, {
+                    overwrite: false    
+                });
 
                 // Copy the required libraries for each component of the mod
                 for (let [name, libs] of Object.entries(MOD_COMPONENTS)) {
@@ -346,13 +353,15 @@ async function newProject() {
                     }
                 }
 
-                // Update the mod.json
-                let modPath = join(path, 'mod.json');
-                let buffer = await fs.readFile(modPath);
-                let mod = JSON.parse(buffer.toString());
-                mod['Name'] = name;
-                mod['Authors'] = [ process.env['USERNAME'] || process.env['USER'] || '' ];
-                await fs.writeFile(modPath, JSON.stringify(mod, null, 4));
+                if (!codeExists) {
+                    // Update the mod.json
+                    let modPath = join(path, 'mod.json');
+                    let buffer = await fs.readFile(modPath);
+                    let mod = JSON.parse(buffer.toString());
+                    mod['Name'] = name;
+                    mod['Authors'] = [ process.env['USERNAME'] || process.env['USER'] || '' ];
+                    await fs.writeFile(modPath, JSON.stringify(mod, null, 4));
+                }
             
                 // Open the workspace
                 commands.executeCommand('vscode.openFolder', Uri.file(projectPath));
