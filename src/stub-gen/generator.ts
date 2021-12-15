@@ -21,7 +21,8 @@ import { join } from 'path';
 const globAsync = promisify(glob);
 
 function _LT(type: string) {
-    if (type == 'int' || type == 'float') return 'number';
+    if (type == 'int') return 'integer';
+    if (type == 'float') return 'number';
     if (type == 'bool') return 'boolean';
     if (type == 'callable') return 'function';
     return type;
