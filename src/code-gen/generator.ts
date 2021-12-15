@@ -8,6 +8,7 @@ import { LuaLexer, LuaParser, LuaParserListener, StatClassContext, StatFunctionC
 
 export interface GenerationConfig {
     forceGlobal: boolean;
+    disable: boolean;
 }
 
 interface LuaParam {
@@ -229,6 +230,12 @@ async function parseFile(content: string): Promise<{ [name: string]: LuaClass }>
 }
 
 export async function generate(outPath: string, filePath: string, content: string, config: GenerationConfig) {
+    // If generation is disabled, then don't do anything
+    if (config.disable) {
+        console.log(`Code generation not enabled. Intermediate code will not be generated for ${filePath}`);
+        return;
+    }
+
     // Parse content
     let classes = await parseFile(content);
 

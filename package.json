@@ -52,6 +52,11 @@
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "Forcefully define classes in a global context. This allows you to define classes as `class('MyObject')` rather than `MyObject = class('MyObject')` and have full type information generated for them"
+                },
+                "vua.generation.disable": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "Disable intermediate code generation. IntelliSense quality may deteriorate as a result of setting this to true."
                 }
             }
         }

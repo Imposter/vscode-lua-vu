@@ -50,10 +50,6 @@ const MOD_COMPONENTS = {
 
 const INTERMEDIATE_BUILD_FREQUENCY = 2; // Hz
 
-function getArchiveUrl(r: GitHubRepository) {
-    return `https://github.com/${r.user}/${r.name}/archive/${r.branch}.zip`;
-}
-
 // Reference to the ExtensionContext
 var mainContext = {} as ExtensionContext;
 
@@ -61,6 +57,10 @@ var mainContext = {} as ExtensionContext;
 interface ActionItem extends QuickPickItem {
     id: string;
     callback: () => Promise<void>;
+}
+
+function getArchiveUrl(r: GitHubRepository) {
+    return `https://github.com/${r.user}/${r.name}/archive/${r.branch}.zip`;
 }
 
 // Callbacks
@@ -547,7 +547,7 @@ function showActionMenu() {
                 await action.callback();
             } catch (error) {
                 // TODO: Show console errors instead of modals
-                window.showErrorMessage(_M('Failed to execute action', [ error ]), { modal: true });
+                window.showErrorMessage(_M('Failed to execute action', [ error as string ]), { modal: true });
             } finally {
                 quickPick.dispose();
             }
@@ -589,7 +589,7 @@ export async function activate(context: ExtensionContext) {
             await rebuildIntermediate();
         } catch (error) {
             // TODO: Show console errors instead of modals
-            window.showErrorMessage(_M('Failed to build intermediate files', [ error ]), { modal: true });
+            window.showErrorMessage(_M('Failed to build intermediate files', [ error as string ]), { modal: true });
         }
     }
 
