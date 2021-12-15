@@ -14,11 +14,12 @@ import {
 import { promisify } from 'util';
 import { glob } from 'glob';
 import { load } from 'js-yaml';
-import { existsSync, promises as fs } from 'fs';
+import { exists, promises as fs } from 'fs';
 import { EOL } from 'os';
 import { join } from 'path';
 
 const globAsync = promisify(glob);
+const existsAsync = promisify(exists);
 
 function _LT(type: string) {
     if (type == 'int' || type == 'float') return 'number';
@@ -82,7 +83,10 @@ function generateTypeComment(t: IDocType, opts?: { comments?: string[], readOnly
 
     // Add the description at the end of the comment
     if (t.description) {
-        comments.push(t.description);
+        let descriptions = t.description.split('\n').filter(s => s.trim().length > 0);
+        for (let description of descriptions) {
+            comments.push(description);
+        }
     }
 
     // Add the comments to the code
@@ -417,7 +421,7 @@ async function generateTypes(docsPath: string, outPath: string, path: string, ki
 
         // Ensure the output path exists
         let pathDir = join(outPath, path)        
-        if (!existsSync(pathDir))
+        if (!await existsAsync(pathDir))
             await fs.mkdir(pathDir, { recursive: true });
 
         // Write code
