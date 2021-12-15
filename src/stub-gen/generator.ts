@@ -156,29 +156,41 @@ function generateDocParam(name: string, p: IDocParam) {
     return code;
 }
 
-function generateDocReturn(r: IDocType, comments?: string[]) {
+function generateDocReturn(returns: IDocType | IDocType[], comments?: string[]) {
     let code = ``;
 
-    // Write return doc comment
-    code += `---@return `;
-    if (r.array) {
-        code += `vector`; // EASTL Vector
-    } else if (r.table) {
-        code += `${_LT(r.type)}[]`; // Lua table
-    } else if (r.nestedArray) {
-        // TODO: Implement
-    } else if (r.nestedTable) {
-        // TODO: Implement
+    // If the return meta data is an array, then we need to write out each return type
+    if (Array.isArray(returns)) {
+        for (let i = 0; i < returns.length; i++) {
+            let r = returns[i];
+            code += generateDocReturn(r, comments);
+            if (i != returns.length - 1) {
+                code += EOL;
+            }
+        }
     } else {
-        code += `${_LT(r.type)}`;
-    }
+        // Write return doc comment
+        let r = returns as IDocType;
+        code += `---@return `;
+        if (r.array) {
+            code += `vector`; // EASTL Vector
+        } else if (r.table) {
+            code += `${_LT(r.type)}[]`; // Lua table
+        } else if (r.nestedArray) {
+            // TODO: Implement
+        } else if (r.nestedTable) {
+            // TODO: Implement
+        } else {
+            code += `${_LT(r.type)}`;
+        }
 
-    if (r.nullable) {
-        code += '|nil';
-    }
+        if (r.nullable) {
+            code += '|nil';
+        }
 
-    // Generate and add comment for parameter
-    code += generateTypeComment(r, { comments: comments });
+        // Generate and add comment for parameter
+        code += generateTypeComment(r, { comments: comments });
+    }
 
     return code;
 }
@@ -259,6 +271,7 @@ function generateMethod(name: string, m: IDocMethod, comments?: string[]) {
     
     // Write return statement
     if (m.returns) {
+        // TODO: Improve this
         code += generateDocReturn(m.returns) + EOL;
     }
 

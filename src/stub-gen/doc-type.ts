@@ -29,7 +29,7 @@ export interface IDocMethod {
     name: string;
     description?: string;
     params: { [name: string]: IDocParam };
-    returns?: IDocType;
+    returns?: IDocType | IDocType[];
 }
 
 export interface IDocConstructor {
