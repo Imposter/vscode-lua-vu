@@ -86,6 +86,10 @@ Venice Unleashed Developers:
 - Allen "[kiwidog](https://github.com/kiwidoggie)" Thomas
 - Mats "[Powback](https://github.com/Powback)" Bakken
 
+Contributors:
+
+- [FlashHit](https://github.com/FlashHit) For doing research to improve this extension and making sure I actually work on this extension 😂
+
 For libraries and technologies used by this extension:
 
 - [sumneko](https://github.com/sumneko) for [vscode-lua](https://github.com/sumneko/vscode-lua)
