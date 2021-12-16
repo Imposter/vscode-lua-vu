@@ -271,7 +271,6 @@ function generateMethod(name: string, m: IDocMethod, comments?: string[]) {
     
     // Write return statement
     if (m.returns) {
-        // TODO: Improve this
         code += generateDocReturn(m.returns) + EOL;
     }
 
@@ -323,8 +322,8 @@ function visitClass(c: IDocClass, comments?: string[]): string {
         }
 
         // Generate static properties
-        if (c.staticProperties) {
-            for (let [name, prop] of Object.entries(c.staticProperties)) {
+        if (c.static) {
+            for (let [name, prop] of Object.entries(c.static)) {
                 code += generateDocProperty(name, prop, [ "Static" ]) + EOL;
             }
         }

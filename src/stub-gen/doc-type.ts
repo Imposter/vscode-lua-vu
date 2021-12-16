@@ -48,7 +48,7 @@ export interface IDocClass extends IDocument {
     constructors?: IDocConstructor[];
     methods?: IDocMethod[];
     properties?: { [name: string]: IDocProperty };
-    staticProperties?: { [name: string]: IDocProperty };
+    static?: { [name: string]: IDocProperty };
     operators?: IDocOperator[];
 }
 
