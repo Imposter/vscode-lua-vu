@@ -300,7 +300,9 @@ async function newProject() {
     });
 
     if (name == null) return;
-    if (name.trim().length == 0) {
+
+    name = name.trim();
+    if (name.length == 0) {
         window.showErrorMessage(`Invalid project name`);
         return;
     }
@@ -311,8 +313,11 @@ async function newProject() {
         prompt: 'Project path',
         placeHolder: placeholderPath
     }) as string;
+    
+    if (path == null) return;
 
-    if (path == null || path.length == 0) {
+    path = path.trim();
+    if (path.length == 0) {
         path = placeholderPath;
     }
 
