@@ -74,6 +74,7 @@ function generateTypeComment(t: IDocType, opts?: { comments?: string[], readOnly
     // Indicate if the type is an EASTL vector
     if (t.array) {
         comments.push(`**Vector Type: \`${t.type}\`**`);
+        comments.push('**Cannot be instantiated directly**');
     }
 
     // Indicate default value
@@ -91,7 +92,7 @@ function generateTypeComment(t: IDocType, opts?: { comments?: string[], readOnly
 
     // Add the comments to the code
     if (comments.length > 0) {
-        code += ` @ ${comments.join(' | ')}`; // pp 👀
+        code += ` @ ${comments.join(' | ')}`;
     }
 
     return code;
@@ -103,7 +104,7 @@ function generateDocProperty(name: string, p: IDocProperty, comments?: string[])
     // Write field doc comment
     code += `---@field ${name} `;
     if (p.array) {
-        code += `vector`; // EASTL Vector
+        code += `vector|${_LT(p.type)}[]`; // EASTL Vector
     } else if (p.table) {
         code += `${_LT(p.type)}[]`; // Lua table
     } else if (p.nestedArray) {
@@ -134,7 +135,7 @@ function generateDocParam(name: string, p: IDocParam) {
         // Write param doc comment
         code += `---@param ${name} `;
         if (p.array) {
-            code += `vector`; // EASTL Vector
+            code += `vector|${_LT(p.type)}[]`; // EASTL Vector
         } else if (p.table) {
             code += `${_LT(p.type)}[]`; // Lua table
         } else if (p.nestedArray) {
@@ -173,7 +174,7 @@ function generateDocReturn(returns: IDocType | IDocType[], comments?: string[]) 
         let r = returns as IDocType;
         code += `---@return `;
         if (r.array) {
-            code += `vector`; // EASTL Vector
+            code += `vector|${_LT(r.type)}[]`; // EASTL Vector
         } else if (r.table) {
             code += `${_LT(r.type)}[]`; // Lua table
         } else if (r.nestedArray) {
