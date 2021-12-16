@@ -38,6 +38,15 @@ interface GitHubRepository {
     branch: string;
 }
 
+interface VsCodeFolder {
+    name?: string;
+    path: string;
+}
+
+interface VsCodeWorkspace {
+    readonly folders: VsCodeFolder[];
+}
+
 const LIB_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-lib', branch: 'master' };
 const DOCS_REPO: GitHubRepository = { user: 'EmulatorNexus', name: 'VU-Docs', branch: 'master' };
 const TEMPLATE_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-template', branch: 'master' };
@@ -296,7 +305,8 @@ async function newProject() {
     // Ask for a project name
     let name = await window.showInputBox({
         prompt: 'Project name',
-        placeHolder: 'VUMod'
+        placeHolder: 'VUMod',
+        ignoreFocusOut: true
     });
 
     if (name == null) return;
@@ -308,17 +318,19 @@ async function newProject() {
     }
 
     // Ask for a project path
-    let placeholderPath = workspace.workspaceFolders && workspace.workspaceFolders.length ? workspace.workspaceFolders[0].uri.fsPath : '';
+    let defaultPath = workspace.workspaceFolders && workspace.workspaceFolders.length ? workspace.workspaceFolders[0].uri.fsPath : '';
     let path = await window.showInputBox({
         prompt: 'Project path',
-        placeHolder: placeholderPath
+        value: defaultPath,
+        ignoreFocusOut: true
     }) as string;
     
     if (path == null) return;
 
     path = path.trim();
     if (path.length == 0) {
-        path = placeholderPath;
+        window.showErrorMessage(`Invalid project path`);
+        return;
     }
 
     // Ensure the project doesn't exist already
@@ -327,6 +339,12 @@ async function newProject() {
         window.showErrorMessage(`A project already exists at ${path}`);
         return;
     }
+
+    // Ask if WebUI should be enabled for the project
+    let webui = await window.showQuickPick(['Yes', 'No'], {
+        placeHolder: 'Enable WebUI',
+        ignoreFocusOut: true
+    }) == 'Yes';
 
     await window.withProgress({
         location: ProgressLocation.Notification,
@@ -359,12 +377,27 @@ async function newProject() {
                 }
 
                 if (!codeExists) {
+                    // Update the project.code-workspace file
+                    if (webui) {
+                        let projectFile = join(path, 'project.code-workspace');
+                        let project = JSON.parse(await fs.readFile(projectFile, 'utf8')) as VsCodeWorkspace;
+                        project.folders.push({
+                            name: 'Web UI',
+                            path: 'WebUI'
+                        });
+
+                        await fs.writeFile(projectFile, JSON.stringify(project, null, 4));
+
+                        // Create a WebUI directory
+                        await fs.mkdir(join(path, 'WebUI'), { recursive: true });
+                    }
+
                     // Update the mod.json
                     let modPath = join(path, 'mod.json');
-                    let buffer = await fs.readFile(modPath);
-                    let mod = JSON.parse(buffer.toString());
+                    let mod = JSON.parse(await fs.readFile(modPath, 'utf8'));
                     mod['Name'] = name;
                     mod['Authors'] = [ process.env['USERNAME'] || process.env['USER'] || '' ];
+                    mod['HasWebUI'] = webui;
                     await fs.writeFile(modPath, JSON.stringify(mod, null, 4));
                 }
             
@@ -420,6 +453,20 @@ async function updateProject() {
             }
         });
     });
+}
+
+async function openModConfigEditor() {
+    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+        window.showErrorMessage('A project workspace is not open');
+        return;
+    }
+
+    let path = dirname(workspace.workspaceFile.fsPath);
+    
+    // Open the mod.json file in an editor
+    let modPath = join(path, 'mod.json');
+    let uri = Uri.file(modPath);
+    await commands.executeCommand('vscode.open', uri);
 }
 
 async function downloadContent() {
@@ -525,6 +572,12 @@ function showActionMenu() {
             label: 'Update Project',
             description: 'Updates the current project with the latest VU types and support libraries',
             callback: updateProject
+        },
+        {
+            id: 'edit_mod_config',
+            label: 'Edit Mod Config',
+            description: 'Opens the mod.json file in an editor',
+            callback: openModConfigEditor
         },
         {
             id: 'download_content',
