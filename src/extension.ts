@@ -38,6 +38,22 @@ interface GitHubRepository {
     branch: string;
 }
 
+interface LuaExtWorkspaceSettings {
+    library: string[];
+}
+
+interface LuaExtSettings {
+    workspace: LuaExtWorkspaceSettings;
+}
+
+interface VsCodeSettings {
+    // Required settings
+    Lua: LuaExtSettings;
+
+    // Everything else
+    [key: string]: any;
+}
+
 interface VsCodeFolder {
     name?: string;
     path: string;
@@ -74,36 +90,50 @@ function getArchiveUrl(r: GitHubRepository) {
 
 // Callbacks
 async function onDidDeleteFiles(e: FileDeleteEvent) {
+    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+        return;
+    }
+
+    let projectPath = dirname(workspace.workspaceFile.fsPath);
+    let imPath = join(projectPath, '.vu', 'intermediate');
+
     // Delete the matching intermediate files
-    for (let file of e.files) {
+    for (let file of e.files) {        
         let folder = workspace.getWorkspaceFolder(file);
         if (!folder) continue;
 
         let componentPath = folder.uri.fsPath;
-        let imPath = join(componentPath, '.vu', 'intermediate');
+        let componentImPath = join(imPath, basename(folder.uri.fsPath));
 
         // Ignore delete if the file was an intermediate file
-        if (isSubPath(file.fsPath, imPath))
+        if (isSubPath(file.fsPath, componentImPath))
             continue;
         
         let relPath = relative(componentPath, file.fsPath);
-        let path = join(imPath, relPath);
+        let path = join(componentImPath, relPath);
         if (existsSync(path))
             await fs.unlink(path);
     }
 }
 
 async function onDidRenameFiles(e: FileRenameEvent) {
+    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+        return;
+    }
+
+    let projectPath = dirname(workspace.workspaceFile.fsPath);
+    let imPath = join(projectPath, '.vu', 'intermediate');
+
     // Rename the matching intermediate files
     for (let file of e.files) {
         let folder = workspace.getWorkspaceFolder(file.oldUri);
         if (!folder) continue;
 
         let componentPath = folder.uri.fsPath;
-        let imPath = join(componentPath, '.vu', 'intermediate');
+        let componentImPath = join(imPath, basename(folder.uri.fsPath));
 
         // Ignore rename if the file was an intermediate file
-        if (isSubPath(file.oldUri.fsPath, imPath))
+        if (isSubPath(file.oldUri.fsPath, componentImPath))
             continue;
         
         let oldExt = extname(file.oldUri.fsPath);
@@ -114,22 +144,22 @@ async function onDidRenameFiles(e: FileRenameEvent) {
                 let oldRelPath = relative(componentPath, file.oldUri.fsPath);
                 let newRelPath = relative(componentPath, file.newUri.fsPath);
                 
-                let oldPath = join(imPath, oldRelPath);
-                let newPath = join(imPath, newRelPath);
+                let oldPath = join(componentImPath, oldRelPath);
+                let newPath = join(componentImPath, newRelPath);
 
                 if (existsSync(oldPath))
                     await fs.rename(oldPath, newPath);
             } else {
                 // Delete the intermediate file
                 let relPath = relative(componentPath, file.oldUri.fsPath);
-                let path = join(imPath, relPath);
+                let path = join(componentImPath, relPath);
                 if (existsSync(path))
                     await fs.unlink(path);
             }
         } else {
             if (newExt == '.lua') {
                 // Generate intermediate types for this file
-                await generateIntermediateCode(folder, file.newUri.fsPath, (await fs.readFile(file.newUri.fsPath)).toString());
+                await generateIntermediateCode(folder, file.newUri.fsPath, await fs.readFile(file.newUri.fsPath, 'utf8'));
             }
         }
     }
@@ -165,11 +195,18 @@ async function onDidChangeTextDocument(e: TextDocumentChangeEvent) {
 }
 
 async function generateIntermediateCode(folder: WorkspaceFolder, path: string, content: string) {
+    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+        return;
+    }
+
+    let projectPath = dirname(workspace.workspaceFile.fsPath);
+    let imPath = join(projectPath, '.vu', 'intermediate');
+
     // Check if an intermediate dir path exists and create it if it doesn't
     let componentPath = folder.uri.fsPath;
-    let imPath = join(componentPath, '.vu', 'intermediate');
-    if (!existsSync(imPath))
-        await fs.mkdir(imPath, { recursive: true });
+    let componentImPath = join(imPath, basename(folder.uri.fsPath));
+    if (!existsSync(componentImPath))
+        await fs.mkdir(componentImPath, { recursive: true });
     
     // Get a relative path to the file from the component root
     let relPath = relative(componentPath, path);
@@ -182,7 +219,7 @@ async function generateIntermediateCode(folder: WorkspaceFolder, path: string, c
     
     try {
         // Generate the code
-        await generateCode(imPath, relPath, content, generationConfig);
+        await generateCode(componentImPath, relPath, content, generationConfig);
     } catch (error) {
         // Show error if required
         if (interfaceConfig.showErrors) {
@@ -367,15 +404,6 @@ async function newProject() {
                     overwrite: false    
                 });
 
-                // Copy the required libraries for each component of the mod
-                for (let [name, libs] of Object.entries(MOD_COMPONENTS)) {
-                    let componentPath = join(path, 'ext', name);
-
-                    for (let lib of libs) {
-                        await copy(join(dataPath, lib), join(componentPath, '.vu', lib));
-                    }
-                }
-
                 if (!codeExists) {
                     // Update the project.code-workspace file
                     if (webui) {
@@ -392,6 +420,21 @@ async function newProject() {
                         await fs.mkdir(join(path, 'WebUI'), { recursive: true });
                     }
 
+                    // Update each settings.json file in the project
+                    for (let [name, libs] of Object.entries(MOD_COMPONENTS)) {
+                        let componentPath = join(path, 'ext', name);
+                        let settingsFile = join(componentPath, '.vscode', 'settings.json');
+                        let settings = JSON.parse(await fs.readFile(settingsFile, 'utf8')) as VsCodeSettings;
+
+                        // For non-shared components, the shared component and the intermediate files for the shared component are already included in the template
+                        // along with the path of the component's own intermediate files.
+                        settings.Lua.workspace.library.push(
+                            ...libs.map(lib => absPath(join(dataPath, lib))), // Path to libraries required by the component
+                        );
+    
+                        await fs.writeFile(settingsFile, JSON.stringify(settings, null, 4));
+                    }
+
                     // Update the mod.json
                     let modPath = join(path, 'mod.json');
                     let mod = JSON.parse(await fs.readFile(modPath, 'utf8'));
@@ -403,49 +446,6 @@ async function newProject() {
             
                 // Open the workspace
                 commands.executeCommand('vscode.openFolder', Uri.file(projectPath));
-
-                resolve();
-            } catch (error) {
-                reject(error);
-            }
-        });
-    });
-}
-
-async function updateProject() {
-    // See if the types have already been downloaded and generated
-    let extPath = mainContext.globalStorageUri.fsPath;
-    let dataPath = join(extPath, 'data');
-    if (!existsSync(join(dataPath, '.complete'))) {
-        window.showErrorMessage('VU content has not been downloaded. Please download it first.');
-        return;
-    }
-
-    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
-        window.showErrorMessage('A project workspace is not open');
-        return;
-    }
-
-    let path = dirname(workspace.workspaceFile.fsPath);
-    await window.withProgress({
-        location: ProgressLocation.Notification,
-        title: 'Updating project',
-        cancellable: false
-    }, () => {
-        return new Promise<void>(async (resolve, reject) => {
-            try {
-                // Copy the required libraries for each component of the mod
-                for (let [name, libs] of Object.entries(MOD_COMPONENTS)) {
-                    let componentPath = join(path, 'ext', name);
-
-                    // Remove local copy of the libs and update them
-                    for (let lib of libs) {
-                        let targetLibPath = join(componentPath, '.vu', lib);
-
-                        await fs.rmdir(targetLibPath, { recursive: true });
-                        await copy(join(dataPath, lib), targetLibPath);
-                    }
-                }
 
                 resolve();
             } catch (error) {
@@ -503,6 +503,7 @@ async function rebuildIntermediate(path?: string) {
     // Copy the required libraries for each component of the mod
     for (let component of Object.keys(MOD_COMPONENTS)) {
         let componentPath = join(path, 'ext', component);
+        let componentImPath = join(path, '.vu', 'intermediate', component);
         
         // Show a progress dialog for each folder
         await window.withProgress({
@@ -517,12 +518,11 @@ async function rebuildIntermediate(path?: string) {
                 if (!generationConfig) return;
 
                 // Delete any intermediate files
-                let imPath = join(componentPath, '.vu', 'intermediate');
-                if (existsSync(imPath))
-                    await fs.rmdir(imPath, { recursive: true });
+                if (existsSync(componentImPath))
+                    await fs.rmdir(componentImPath, { recursive: true });
 
                 // Make a new intermediate file directory
-                await fs.mkdir(imPath, { recursive: true });
+                await fs.mkdir(componentImPath, { recursive: true });
 
                 // Get all lua files within the folder
                 let luaFiles = await globAsync(join(componentPath, '**/*.lua'));
@@ -536,11 +536,10 @@ async function rebuildIntermediate(path?: string) {
                 try {
                     for (file of luaFiles) {
                         // Read file
-                        let buffer = await fs.readFile(file);
-                        let content = buffer.toString();
+                        let content = await fs.readFile(file, 'utf8');
 
                         let relPath = relative(componentPath, file);
-                        await generateCode(imPath, relPath, content, generationConfig);
+                        await generateCode(componentImPath, relPath, content, generationConfig);
 
                         progress.report({ message: `Done ${relPath}`, increment: increment });
                     }
@@ -566,12 +565,6 @@ function showActionMenu() {
             label: 'Create New Project',
             description: 'Creates a new project with the pre-prepared mod template',
             callback: newProject
-        },
-        {
-            id: 'update_project',
-            label: 'Update Project',
-            description: 'Updates the current project with the latest VU types and support libraries',
-            callback: updateProject
         },
         {
             id: 'edit_mod_config',
@@ -618,6 +611,8 @@ function showActionMenu() {
     quickPick.show();
 }
 
+// ISSUE: Ability to set include library folders per workspace folder
+// As it currently stands, if you use a workspace in VSCode, TODO: ...
 export async function activate(context: ExtensionContext) {
     // Store extension context
     mainContext = context;
