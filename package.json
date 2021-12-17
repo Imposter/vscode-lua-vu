@@ -48,15 +48,15 @@
                     "default": false,
                     "description": "Show intermediate file errors when a file has bad syntax and cannot be generated. You can get the same functionality when rebuilding intermediate files."
                 },
+                "vua.generation.disable": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "Disable intermediate code generation. IntelliSense quality may deteriorate as a result of setting this to true."
+                },
                 "vua.generation.forceGlobal": {
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "Forcefully define classes in a global context. This allows you to define classes as `class('MyObject')` rather than `MyObject = class('MyObject')` and have full type information generated for them"
-                },
-                "vua.generation.disable": {
-                    "type": "boolean",
-                    "default": true,
-                    "markdownDescription": "Disable intermediate code generation. IntelliSense quality may deteriorate as a result of setting this to true."
                 }
             }
         }
