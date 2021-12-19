@@ -70,7 +70,6 @@ local obj = MyObject('obj', Vec3(1.0, 2.0, 3.0))
 
 - Incomplete implementation of parser against some of the EmmyLua [documentation](https://emmylua.github.io/) strings
 - Incomplete VU document processing will give wrong output for nested tables and nested arrays
-- No type information for user-defined types when including shared classes in the server or client code
 
 ## Changelog
 

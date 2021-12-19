@@ -35,7 +35,8 @@ interface InterfaceConfig {
 interface GitHubRepository {
     user: string;
     name: string;
-    branch: string;
+    branch?: string;
+    tag?: string;
 }
 
 interface LuaExtWorkspaceSettings {
@@ -63,9 +64,9 @@ interface VsCodeWorkspace {
     readonly folders: VsCodeFolder[];
 }
 
-const LIB_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-lib', branch: 'master' };
+const LIB_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-lib' };
+const TEMPLATE_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-template' };
 const DOCS_REPO: GitHubRepository = { user: 'EmulatorNexus', name: 'VU-Docs', branch: 'master' };
-const TEMPLATE_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-template', branch: 'master' };
 
 const MOD_COMPONENTS = {
     "Shared": [ 'lib', 'types/fb', 'types/shared' ],
@@ -84,8 +85,18 @@ interface ActionItem extends QuickPickItem {
     callback: () => Promise<void>;
 }
 
+function getRepoWithTag(r: GitHubRepository, tag: string) {
+    r.tag = tag;
+    return r;
+}
+
 function getArchiveUrl(r: GitHubRepository) {
-    return `https://github.com/${r.user}/${r.name}/archive/${r.branch}.zip`;
+    if (r.branch != undefined)
+        return `https://github.com/${r.user}/${r.name}/archive/${r.branch}.zip`;
+    if (r.tag != undefined)
+        return `https://github.com/${r.user}/${r.name}/archive/refs/tags/${r.tag}.zip`;
+
+    throw new Error('Either branch or tag must be specified');
 }
 
 // Callbacks
@@ -269,26 +280,30 @@ async function downloadFile(name: string, uri: Uri, outPath: string, extract?: b
                 resolve(file.fsPath);   
             } catch (error) {
                 // The file failed to download, pass the error along
-                reject(error);
+                reject(`Failed to download ${name} (URL: ${uri}) | ${error}`);
             }
         });
     });
 }
 
 async function prepareContent(): Promise<string> {
-    let extPath = mainContext.globalStorageUri.fsPath;
+    let extDataPath = mainContext.globalStorageUri.fsPath;
 
     // Download the libraries to a temporary data dir
-    let tempDataPath = join(extPath, 'temp-data');
+    let tempDataPath = join(extDataPath, 'temp-data');
     if (existsSync(tempDataPath))
         await fs.rmdir(tempDataPath, { recursive: true });
 
     await fs.mkdir(tempDataPath, { recursive: true });
 
+    // Set repository tags to the version of the extension
+    let packageInfo = JSON.parse(await fs.readFile(join(mainContext.extensionPath, 'package.json'), 'utf8'));
+    let tag = `v${packageInfo.version}`;
+
     // Download content to temporary paths
-    let libPath = await downloadFile('Libraries', Uri.parse(getArchiveUrl(LIB_REPO)), 'dl-lib', true);
+    let libPath = await downloadFile('Libraries', Uri.parse(getArchiveUrl(getRepoWithTag(LIB_REPO, tag))), 'dl-lib', true);
+    let templatePath = await downloadFile('Project Template', Uri.parse(getArchiveUrl(getRepoWithTag(TEMPLATE_REPO, tag))), 'dl-template', true);
     let docsPath = await downloadFile('VU Docs', Uri.parse(getArchiveUrl(DOCS_REPO)), 'dl-docs', true);
-    let templatePath = await downloadFile('Project Template', Uri.parse(getArchiveUrl(TEMPLATE_REPO)), 'dl-template', true);
 
     // Show progress while generating stubs
     return await window.withProgress({
@@ -300,25 +315,26 @@ async function prepareContent(): Promise<string> {
             try {
                 // Create paths
                 let targetLibPath = join(tempDataPath, 'lib');
-                let targetDocsPath = join(tempDataPath, 'docs');
                 let targetTemplatePath = join(tempDataPath, 'template');
+                let targetDocsPath = join(tempDataPath, 'docs');
 
                 // Rearrange files
-                await fs.rename(join(libPath, `${LIB_REPO.name}-${LIB_REPO.branch}`), targetLibPath);
-                await fs.rename(join(docsPath, `${DOCS_REPO.name}-${DOCS_REPO.branch}`), targetDocsPath);
-                await fs.rename(join(templatePath, `${TEMPLATE_REPO.name}-${TEMPLATE_REPO.branch}`), targetTemplatePath);
+                await fs.rename(join(libPath, (await fs.readdir(libPath))[0]), targetLibPath);
+                await fs.rename(join(templatePath, (await fs.readdir(templatePath))[0]), targetTemplatePath);
+                await fs.rename(join(docsPath, (await fs.readdir(docsPath))[0]), targetDocsPath);
 
                 // Generate stubs
                 await generateStubs(join(targetDocsPath, 'types'), join(tempDataPath, 'types'));
 
                 // Since the content was prepared successfully, overwrite any existing data
                 // and write a file to signal that the libraries have been prepared successfully
-                let dataPath = join(extPath, 'data');
+                let dataPath = join(extDataPath, 'data');
                 if (existsSync(dataPath)) 
                     await fs.rmdir(dataPath, { recursive: true });
 
                 await fs.rename(tempDataPath, dataPath);
                 await fs.writeFile(join(dataPath, '.complete'), '');
+                await fs.writeFile(join(dataPath, '.version'), packageInfo.version);
 
                 // Return the data path
                 resolve(dataPath);
@@ -331,12 +347,17 @@ async function prepareContent(): Promise<string> {
 
 // Action callbacks
 async function newProject() {
+    // Get the extension package information
+    let packageInfo = JSON.parse(await fs.readFile(join(mainContext.extensionPath, 'package.json'), 'utf8'));
+
     // See if the types have already been downloaded and generated
-    let extPath = mainContext.globalStorageUri.fsPath;
-    let dataPath = join(extPath, 'data');
-    if (!existsSync(join(dataPath, '.complete'))) {
-        window.showErrorMessage('VU content has not been downloaded. Please download it first.');
-        return;
+    let extDataPath = mainContext.globalStorageUri.fsPath;
+    let dataPath = join(extDataPath, 'data');
+    if (!existsSync(join(dataPath, '.complete')) 
+        || !existsSync(join(dataPath, '.version')) 
+        || fs.readFile(join(dataPath, '.version'), 'utf8') !== packageInfo.version) {
+        // If not, download and generate the content first
+        await prepareContent();
     }
 
     // Ask for a project name
@@ -465,28 +486,15 @@ async function openModConfigEditor() {
     
     // Open the mod.json file in an editor
     let modPath = join(path, 'mod.json');
-    let uri = Uri.file(modPath);
-    await commands.executeCommand('vscode.open', uri);
+    await commands.executeCommand('vscode.open', Uri.file(modPath));
 }
 
 async function downloadContent() {
-    // Prepare the content
-    let dataPath = await prepareContent();
-
-    // If a workspace is not open, bail, otherwise update the types in the project
-    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace')
-        return;
-
-    // Only continue if a project file exists
-    let path = dirname(workspace.workspaceFile.fsPath);
-
-    // Copy the required libraries for each component of the mod
-    for (let [name, libs] of Object.entries(MOD_COMPONENTS)) {
-        let componentPath = join(path, 'ext', name);
-
-        for (let lib of libs) {
-            await copy(join(dataPath, lib), join(componentPath, '.vu', lib));
-        }
+    try {
+        await prepareContent();
+    } catch (error) {
+        // TODO: Show console errors instead of modals
+        window.showErrorMessage(_M('Failed to download content', [ error as string ]), { modal: true });
     }
 }
 
@@ -611,8 +619,6 @@ function showActionMenu() {
     quickPick.show();
 }
 
-// ISSUE: Ability to set include library folders per workspace folder
-// As it currently stands, if you use a workspace in VSCode, TODO: ...
 export async function activate(context: ExtensionContext) {
     // Store extension context
     mainContext = context;
@@ -638,6 +644,24 @@ export async function activate(context: ExtensionContext) {
 
     // Check if the workspace contains intermediate files, if it does, rebuild them
     if (workspace.workspaceFile) {
+        try {
+            // Get the extension package information
+            let packageInfo = JSON.parse(await fs.readFile(join(mainContext.extensionPath, 'package.json'), 'utf8'));
+
+            // See if the types have already been downloaded and generated
+            let extDataPath = mainContext.globalStorageUri.fsPath;
+            let dataPath = join(extDataPath, 'data');
+            if (!existsSync(join(dataPath, '.complete')) 
+                || !existsSync(join(dataPath, '.version')) 
+                || fs.readFile(join(dataPath, '.version'), 'utf8') !== packageInfo.version) {
+                // If not, download and generate the content first
+                await prepareContent();
+            }
+        } catch (error) {
+            // TODO: Show console errors instead of modals
+            window.showErrorMessage(_M('Failed to download content', [ error as string ]), { modal: true });
+        }
+        
         try {
             await rebuildIntermediate();
         } catch (error) {
