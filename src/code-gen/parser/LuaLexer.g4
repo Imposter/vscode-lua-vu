@@ -246,8 +246,22 @@ DOC_TYPE: 'type';
 DOC_VARARG: 'vararg';
 DOC_OR: '|';
 
+DOC_FUNC: 'fun';
+
 DOC_WS
     : [ \t\f]+ -> skip
+    ;
+
+DOC_COMMA
+    : COMMA
+    ;
+
+DOC_SQ_BRACK_OPEN
+    : SQ_BRACK_OPEN
+    ;
+
+DOC_SQ_BRACK_CLOSE
+    : SQ_BRACK_CLOSE
     ;
 
 DOC_COLON
@@ -256,6 +270,14 @@ DOC_COLON
 
 DOC_NAME
     : NAME
+    ;
+
+DOC_PAREN_OPEN
+    : PAREN_OPEN
+    ;
+
+DOC_PAREN_CLOSE
+    : PAREN_CLOSE
     ;
 
 DOC_END

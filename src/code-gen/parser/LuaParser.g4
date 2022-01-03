@@ -97,14 +97,33 @@ statDocType
     ;
 
 expDocList
-    : expDoc (COMMA expDoc)*
+    : expDoc (DOC_COMMA expDoc)*
     ;
 
 expDoc
-    : DOC_NAME (DOC_OR DOC_NAME)*
+    : DOC_NAME (DOC_OR DOC_NAME)* (DOC_SQ_BRACK_OPEN DOC_SQ_BRACK_CLOSE)?
+    | expDocFunc
     ;
 
-// Lua + Middleclass spec
+expDocFunc
+    : DOC_FUNC DOC_PAREN_OPEN expDocFuncList* DOC_PAREN_CLOSE
+    ;
+
+expDocFuncList
+    : expDocFuncDoc (DOC_COMMA expDocFuncDoc)*
+    ;
+
+expDocFuncDoc
+    : expDocFunc
+    | expDocFuncParam
+    | DOC_NAME (DOC_OR DOC_NAME)*
+    ;
+
+expDocFuncParam
+    : docName=DOC_NAME DOC_COLON docType=expDoc
+    ;
+
+// Lua + Middleclass + EmmyLua spec
 statEmpty
     : SEMICOLON
     ;
@@ -114,12 +133,13 @@ statAssignment
     ;
 
 statLocal
-    : docType=statDocType? LOCAL attNameList (ASSIGN expList)?
+    : docDesc=statDocDesc* docType=statDocType? docParams=statDocParam* LOCAL attNameList (ASSIGN expList)?
     ;
 
 statClassDef
     : CLASS PAREN_OPEN? name=string (COMMA base=NAME)? PAREN_CLOSE?
     | LOCAL? varName=attNameList ASSIGN CLASS PAREN_OPEN? name=string (COMMA base=NAME)? PAREN_CLOSE?
+    | LOCAL? varName=attNameList ASSIGN tableConstructor
     ;
 
 statClass

@@ -46,9 +46,17 @@ class LuaChunkListener implements LuaParserListener {
         // Get class definition
         let def = ctx.statClassDef();
 
+        // Get class name
+        let name = '';
+        if (def.tableConstructor()) {
+            name = def._varName.text;
+        } else {
+            name = def._name.text.slice(1, -1);
+        }
+
         // Create a new instance of the class
         let _class = {
-            name: def._name.text.slice(1, -1), // Remove quotes from the string
+            name: name, // Remove quotes from the string
             inherits: def._base?.text,
             constructors: [],
             global: def._varName && !def.LOCAL(),
@@ -58,8 +66,6 @@ class LuaChunkListener implements LuaParserListener {
         this._classes[_class.name] = _class;
     }
 
-    // TODO: Eventually replace this with just manually building the parameter list and storing all associated doc strings
-    // and plopping them back into the intermediate code file
     exitStatFunction(ctx: StatFunctionContext) {
         let funcName = ctx._def._name.text;
         let funcNameSplit = funcName.split(':');
