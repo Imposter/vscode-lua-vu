@@ -79,6 +79,19 @@ const INTERMEDIATE_BUILD_FREQUENCY = 2; // Hz
 // Reference to the ExtensionContext
 var mainContext = {} as ExtensionContext;
 
+// Utility functions
+function _M(message: string, details?: string[]) {
+    let m = message;
+    if (details) m += EOL + EOL + details.join(EOL);
+    return m;
+}
+
+function isSubPath(child: string, parent: string) {
+    if (child === parent) return false
+    let parentTokens = parent.split(sep).filter(i => i.length)
+    return parentTokens.every((t, i) => child.split(sep)[i] === t)
+}
+
 // Menu item
 interface ActionItem extends QuickPickItem {
     id: string;
@@ -237,19 +250,6 @@ async function generateIntermediateCode(folder: WorkspaceFolder, path: string, c
             window.showErrorMessage(`Error analyzing file ${relPath} | ${error}`);
         }
     }
-}
-
-function isSubPath(child: string, parent: string) {
-    if (child === parent) return false
-    let parentTokens = parent.split(sep).filter(i => i.length)
-    return parentTokens.every((t, i) => child.split(sep)[i] === t)
-}
-
-// Utility functions
-function _M(message: string, details?: string[]) {
-    let m = message;
-    if (details) m += EOL + EOL + details.join(EOL);
-    return m;
 }
 
 async function downloadFile(name: string, uri: Uri, outPath: string, extract?: boolean) {
@@ -525,23 +525,23 @@ async function rebuildIntermediate(path?: string) {
                 let generationConfig = configuration.get<GenerationConfig>('vua.generation');
                 if (!generationConfig) return;
 
-                // Delete any intermediate files
-                if (existsSync(componentImPath))
-                    await fs.rmdir(componentImPath, { recursive: true });
-
-                // Make a new intermediate file directory
-                await fs.mkdir(componentImPath, { recursive: true });
-
-                // Get all lua files within the folder
-                let luaFiles = await globAsync(join(componentPath, '**/*.lua'));
-
-                // Show initial progress report since we now have the maximum progress value
-                let increment = 100 / luaFiles.length;
-                progress.report({ message: 'Starting...' });
-
-                // Generate intermediate files for them
                 let file = '';
                 try {
+                    // Delete any intermediate files
+                    if (existsSync(componentImPath))
+                    await fs.rmdir(componentImPath, { recursive: true });
+
+                    // Make a new intermediate file directory
+                    await fs.mkdir(componentImPath, { recursive: true });
+
+                    // Get all lua files within the folder
+                    let luaFiles = await globAsync(join(componentPath, '**/*.lua'));
+
+                    // Show initial progress report since we now have the maximum progress value
+                    let increment = 100 / luaFiles.length;
+                    progress.report({ message: 'Starting...' });
+
+                    // Generate intermediate files for them
                     for (file of luaFiles) {
                         // Read file
                         let content = await fs.readFile(file, 'utf8');
