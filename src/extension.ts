@@ -20,7 +20,7 @@ import { glob } from 'glob';
 import { basename, dirname, extname, join, relative, resolve as absPath, sep } from 'path';
 import { promises as fs, existsSync } from 'fs';
 import { promisify } from 'util';
-import { EOL } from 'os';
+import { EOL, type as osType } from 'os';
 import { throttle } from 'throttle-debounce';
 import { getApi } from '@microsoft/vscode-file-downloader-api';
 import { generate as generateStubs } from './stub-gen/generator';
@@ -39,22 +39,6 @@ interface GitHubRepository {
     tag?: string;
 }
 
-interface LuaExtWorkspaceSettings {
-    library: string[];
-}
-
-interface LuaExtSettings {
-    workspace: LuaExtWorkspaceSettings;
-}
-
-interface VsCodeSettings {
-    // Required settings
-    Lua: LuaExtSettings;
-
-    // Everything else
-    [key: string]: any;
-}
-
 interface VsCodeFolder {
     name?: string;
     path: string;
@@ -68,11 +52,7 @@ const LIB_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-lib'
 const TEMPLATE_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-template' };
 const DOCS_REPO: GitHubRepository = { user: 'EmulatorNexus', name: 'VU-Docs', branch: 'master' };
 
-const MOD_COMPONENTS = {
-    "Shared": [ 'lib', 'types/fb', 'types/shared' ],
-    "Server": [ 'lib', 'types/fb', 'types/shared', 'types/server' ],
-    "Client": [ 'lib', 'types/fb', 'types/shared', 'types/client' ]
-};
+const MOD_COMPONENTS = [ 'Shared', 'Server', 'Client' ];
 
 const INTERMEDIATE_BUILD_FREQUENCY = 2; // Hz
 
@@ -441,21 +421,6 @@ async function newProject() {
                         await fs.mkdir(join(path, 'WebUI'), { recursive: true });
                     }
 
-                    // Update each settings.json file in the project
-                    for (let [name, libs] of Object.entries(MOD_COMPONENTS)) {
-                        let componentPath = join(path, 'ext', name);
-                        let settingsFile = join(componentPath, '.vscode', 'settings.json');
-                        let settings = JSON.parse(await fs.readFile(settingsFile, 'utf8')) as VsCodeSettings;
-
-                        // For non-shared components, the shared component and the intermediate files for the shared component are already included in the template
-                        // along with the path of the component's own intermediate files.
-                        settings.Lua.workspace.library.push(
-                            ...libs.map(lib => absPath(join(dataPath, lib))), // Path to libraries required by the component
-                        );
-    
-                        await fs.writeFile(settingsFile, JSON.stringify(settings, null, 4));
-                    }
-
                     // Update the mod.json
                     let modPath = join(path, 'mod.json');
                     let mod = JSON.parse(await fs.readFile(modPath, 'utf8'));
@@ -509,7 +474,7 @@ async function rebuildIntermediate(path?: string) {
     }
 
     // Copy the required libraries for each component of the mod
-    for (let component of Object.keys(MOD_COMPONENTS)) {
+    for (let component of MOD_COMPONENTS) {
         let componentPath = join(path, 'ext', component);
         let componentImPath = join(path, '.vu', 'intermediate', component);
         
@@ -620,6 +585,12 @@ function showActionMenu() {
 }
 
 export async function activate(context: ExtensionContext) {
+    // Check operating system, if not windows, show error and exit
+    if (osType() == 'Windows_NT') {
+        window.showErrorMessage('Vua only supports Windows');
+        return;
+    }
+
     // Store extension context
     mainContext = context;
 
