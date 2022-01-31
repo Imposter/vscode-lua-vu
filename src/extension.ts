@@ -355,7 +355,7 @@ async function newProject() {
     let dataPath = join(extDataPath, 'data');
     if (!existsSync(join(dataPath, '.complete')) 
         || !existsSync(join(dataPath, '.version')) 
-        || fs.readFile(join(dataPath, '.version'), 'utf8') !== packageInfo.version) {
+        || await fs.readFile(join(dataPath, '.version'), 'utf8') !== packageInfo.version) {
         // If not, download and generate the content first
         await prepareContent();
     }
@@ -653,7 +653,7 @@ export async function activate(context: ExtensionContext) {
             let dataPath = join(extDataPath, 'data');
             if (!existsSync(join(dataPath, '.complete')) 
                 || !existsSync(join(dataPath, '.version')) 
-                || fs.readFile(join(dataPath, '.version'), 'utf8') !== packageInfo.version) {
+                || await fs.readFile(join(dataPath, '.version'), 'utf8') !== packageInfo.version) {
                 // If not, download and generate the content first
                 await prepareContent();
             }
