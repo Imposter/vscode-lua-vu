@@ -267,6 +267,12 @@ async function downloadFile(name: string, uri: Uri, outPath: string, extract?: b
 }
 
 async function prepareContent(): Promise<string> {
+    // TEMP: This is a temporary workaround to the workspace library locking issue
+    if (workspace.workspaceFile && basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+        window.showErrorMessage('A project workspace is open. Please close it before attempting to prepare content.');
+        return '';
+    }
+
     let extDataPath = mainContext.globalStorageUri.fsPath;
 
     // Download the libraries to a temporary data dir
