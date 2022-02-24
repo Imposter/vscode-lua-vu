@@ -101,7 +101,7 @@ function getArchiveUrl(r: GitHubRepository) {
 
 // Callbacks
 async function onDidDeleteFiles(e: FileDeleteEvent) {
-    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+    if (!workspace.workspaceFile || extname(workspace.workspaceFile.fsPath) != '.code-workspace') {
         return;
     }
 
@@ -128,7 +128,7 @@ async function onDidDeleteFiles(e: FileDeleteEvent) {
 }
 
 async function onDidRenameFiles(e: FileRenameEvent) {
-    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+    if (!workspace.workspaceFile || extname(workspace.workspaceFile.fsPath) != '.code-workspace') {
         return;
     }
 
@@ -206,7 +206,7 @@ async function onDidChangeTextDocument(e: TextDocumentChangeEvent) {
 }
 
 async function generateIntermediateCode(folder: WorkspaceFolder, path: string, content: string) {
-    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+    if (!workspace.workspaceFile || extname(workspace.workspaceFile.fsPath) != '.code-workspace') {
         return;
     }
 
@@ -477,7 +477,7 @@ async function newProject() {
 }
 
 async function openModConfigEditor() {
-    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+    if (!workspace.workspaceFile || extname(workspace.workspaceFile.fsPath) != '.code-workspace') {
         window.showErrorMessage('A project workspace is not open');
         return;
     }
@@ -500,7 +500,7 @@ async function downloadContent() {
 
 async function rebuildIntermediate(path?: string) {
     if (!path) {
-        if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+        if (!workspace.workspaceFile || extname(workspace.workspaceFile.fsPath) != '.code-workspace') {
             window.showErrorMessage('A project workspace is not open');
             return;
         }
