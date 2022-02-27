@@ -17,7 +17,7 @@ import {
 
 import { copy } from 'fs-extra';
 import { glob } from 'glob';
-import { basename, dirname, extname, join, relative, resolve as absPath, sep } from 'path';
+import { basename, dirname, extname, join, relative, sep } from 'path';
 import { promises as fs, existsSync } from 'fs';
 import { promisify } from 'util';
 import { EOL, type as osType } from 'os';
@@ -72,6 +72,34 @@ function isSubPath(child: string, parent: string) {
     return parentTokens.every((t, i) => child.split(sep)[i] === t)
 }
 
+// Project functions
+function isVuaProject(path: string) {
+    let fileName = basename(path);
+    let dotPos = fileName.indexOf('.');
+    if (dotPos == -1) {
+        return false;
+    }
+
+    let extName = fileName.substring(dotPos);
+    return extName == '.vua.code-workspace';
+}
+
+async function findVuaProject(path: string) {
+    if (!existsSync(path)) {
+        return null;
+    }
+
+    var files = await fs.readdir(path);
+    for (let f of files) {
+        let stat = await fs.lstat(f);
+        if (stat.isFile() && isVuaProject(f)) {
+            return f;
+        }
+    }
+
+    return null;
+}
+
 // Menu item
 interface ActionItem extends QuickPickItem {
     id: string;
@@ -94,7 +122,7 @@ function getArchiveUrl(r: GitHubRepository) {
 
 // Callbacks
 async function onDidDeleteFiles(e: FileDeleteEvent) {
-    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+    if (!workspace.workspaceFile || !isVuaProject(workspace.workspaceFile.fsPath)) {
         return;
     }
 
@@ -121,7 +149,7 @@ async function onDidDeleteFiles(e: FileDeleteEvent) {
 }
 
 async function onDidRenameFiles(e: FileRenameEvent) {
-    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+    if (!workspace.workspaceFile || !isVuaProject(workspace.workspaceFile.fsPath)) {
         return;
     }
 
@@ -199,7 +227,7 @@ async function onDidChangeTextDocument(e: TextDocumentChangeEvent) {
 }
 
 async function generateIntermediateCode(folder: WorkspaceFolder, path: string, content: string) {
-    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+    if (!workspace.workspaceFile || !isVuaProject(workspace.workspaceFile.fsPath)) {
         return;
     }
 
@@ -371,12 +399,15 @@ async function newProject() {
         return;
     }
 
-    // Ensure the project doesn't exist already
-    let projectPath = join(path, 'project.code-workspace');
-    if (existsSync(projectPath)) {
+    // Check if a project exists in the directory already
+    let existingProjectPath = await findVuaProject(path);
+    if (existingProjectPath != null) {
         window.showErrorMessage(`A project already exists at ${path}`);
         return;
     }
+
+    // Get the temporary project path
+    let tempProjectFile = join(path, 'project.vua.code-workspace');
 
     // Ask if WebUI should be enabled for the project
     let webui = await window.showQuickPick(['Yes', 'No'], {
@@ -408,14 +439,13 @@ async function newProject() {
                 if (!codeExists) {
                     // Update the project.code-workspace file
                     if (webui) {
-                        let projectFile = join(path, 'project.code-workspace');
-                        let project = JSON.parse(await fs.readFile(projectFile, 'utf8')) as VsCodeWorkspace;
+                        let project = JSON.parse(await fs.readFile(tempProjectFile, 'utf8')) as VsCodeWorkspace;
                         project.folders.push({
                             name: 'Web UI',
                             path: 'WebUI'
                         });
 
-                        await fs.writeFile(projectFile, JSON.stringify(project, null, 4));
+                        await fs.writeFile(tempProjectFile, JSON.stringify(project, null, 4));
 
                         // Create a WebUI directory
                         await fs.mkdir(join(path, 'WebUI'), { recursive: true });
@@ -430,8 +460,10 @@ async function newProject() {
                     await fs.writeFile(modPath, JSON.stringify(mod, null, 4));
                 }
             
-                // Open the workspace
-                commands.executeCommand('vscode.openFolder', Uri.file(projectPath));
+                // Rename the project file and open the workspace
+                let projectFile = join(path, `${name}.vua.code-workspace`);
+                await fs.rename(tempProjectFile, projectFile);
+                commands.executeCommand('vscode.openFolder', Uri.file(projectFile));
 
                 resolve();
             } catch (error) {
@@ -442,7 +474,7 @@ async function newProject() {
 }
 
 async function openModConfigEditor() {
-    if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+    if (!workspace.workspaceFile || !isVuaProject(workspace.workspaceFile.fsPath)) {
         window.showErrorMessage('A project workspace is not open');
         return;
     }
@@ -465,7 +497,7 @@ async function downloadContent() {
 
 async function rebuildIntermediate(path?: string) {
     if (!path) {
-        if (!workspace.workspaceFile || basename(workspace.workspaceFile.fsPath) != 'project.code-workspace') {
+        if (!workspace.workspaceFile || !isVuaProject(workspace.workspaceFile.fsPath)) {
             window.showErrorMessage('A project workspace is not open');
             return;
         }
@@ -586,8 +618,9 @@ function showActionMenu() {
 
 export async function activate(context: ExtensionContext) {
     // Check operating system, if not windows, show error and exit
-    if (osType() == 'Windows_NT') {
-        window.showErrorMessage('Vua only supports Windows');
+    let osName = osType();
+    if (osName != 'Windows_NT') {
+        window.showErrorMessage(`Vua only supports Windows (Current OS: ${osName})`);
         return;
     }
 
