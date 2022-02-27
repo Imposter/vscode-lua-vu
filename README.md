@@ -8,7 +8,7 @@ This is a Visual Studio Code extension providing Venice Unleashed type informati
 
 ## Usage
 
-- Install the extension
+- Install the extension (Currently only Windows is supported!)
 - Find `Vua Commands` command menu and then download and build the project templates and VU doc types using the `Download and Build Content` command
 - Create a new project by providing a name and a path using the `Create New Project` command
 - Write your code and enjoy type information

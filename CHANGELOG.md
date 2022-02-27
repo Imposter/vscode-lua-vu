@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.3.1
+
+Pre-release
+
+- Use $APPDATA in common data paths to ensure conformity across different development environments [Issue 29](https://github.com/Imposter/vscode-lua-vu/issues/29)
+- Allow projects to have different names rather than just 'project' (Thanks FoolHen)
+- Fix data cache version check
+- Correctly handle IO errors when building intermediate files
+- Add support for versioned content
+
 ## 0.3.0
 
 Pre-release
