@@ -300,7 +300,7 @@ async function prepareContent(): Promise<string> {
     // Download the libraries to a temporary data dir
     let tempDataPath = join(extDataPath, 'temp-data');
     if (existsSync(tempDataPath))
-        await fs.rmdir(tempDataPath, { recursive: true });
+        await fs.rmdir(tempDataPath, { recursive: true, force: true } as any);
 
     await fs.mkdir(tempDataPath, { recursive: true });
 
@@ -338,7 +338,7 @@ async function prepareContent(): Promise<string> {
                 // and write a file to signal that the libraries have been prepared successfully
                 let dataPath = join(extDataPath, 'data');
                 if (existsSync(dataPath)) 
-                    await fs.rmdir(dataPath, { recursive: true });
+                    await fs.rmdir(dataPath, { recursive: true, force: true } as any);
 
                 await fs.rename(tempDataPath, dataPath);
                 await fs.writeFile(join(dataPath, '.complete'), '');
@@ -526,7 +526,7 @@ async function rebuildIntermediate(path?: string) {
                 try {
                     // Delete any intermediate files
                     if (existsSync(componentImPath))
-                    await fs.rmdir(componentImPath, { recursive: true });
+                    await fs.rmdir(componentImPath, { recursive: true, force: true } as any);
 
                     // Make a new intermediate file directory
                     await fs.mkdir(componentImPath, { recursive: true });
