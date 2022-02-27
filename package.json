@@ -2,7 +2,7 @@
     "name": "vscode-lua-vu",
     "displayName": "Vua",
     "description": "An unofficial Visual Studio Code extension for Venice Unleashed Lua functionality",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "publisher": "Imposter",
     "icon": "VuaIcon.png",
     "repository": {
@@ -11,7 +11,7 @@
     },
     "license": "MIT",
     "engines": {
-        "vscode": "^1.43.0"
+        "vscode": "^1.64.0"
     },
     "categories": [
         "Programming Languages"

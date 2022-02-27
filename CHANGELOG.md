@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.3.2
+
+Pre-release
+
+- Update packages
+- Fix bug related to Node v14 update (rmdir must have force parameter)
+
 ## 0.3.1
 
 Pre-release
