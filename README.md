@@ -28,12 +28,6 @@ The following are the supported and planned features for this extension:
     - This currently requires additional work in the form of implementing nested tables/vectors
 - [x] Support for generating type information for user code
 - [ ] [Documentation](https://emmylua.github.io/) support
-  - [x] Classes
-  - [x] Fields
-  - [x] Parameters
-  - [x] Return
-  - [x] Type
-  - [ ] See (reference)
 - [ ] Support for snippet generation
 
 ## Examples
@@ -70,6 +64,7 @@ local obj = MyObject('obj', Vec3(1.0, 2.0, 3.0))
 
 - Incomplete implementation of parser against some of the EmmyLua [documentation](https://emmylua.github.io/) strings
 - Incomplete VU document processing will give wrong output for nested tables and nested arrays
+- Lua Lexer/Parser does not currently support Lua 5.4
 
 ## Changelog
 

@@ -22,7 +22,7 @@ import { promises as fs, existsSync } from 'fs';
 import { promisify } from 'util';
 import { EOL, type as osType } from 'os';
 import { throttle } from 'throttle-debounce';
-import { getApi } from '@microsoft/vscode-file-downloader-api';
+import { downloadFile as downloadHttpFile } from './utils/downloader';
 import { generate as generateStubs } from './stub-gen/generator';
 import { generate as generateCode, GenerationConfig } from './code-gen/generator';
 
@@ -64,6 +64,17 @@ function _M(message: string, details?: string[]) {
     let m = message;
     if (details) m += EOL + EOL + details.join(EOL);
     return m;
+}
+
+function _E(error: Error | string | any) {
+    if (error instanceof Error) { 
+        if (error.stack) {
+            return error.message + EOL + EOL + error.stack;
+        }
+        return error.message; 
+    }
+    if (typeof error === 'string') { return error; }
+    return error;
 }
 
 function isSubPath(child: string, parent: string) {
@@ -260,19 +271,17 @@ async function generateIntermediateCode(folder: WorkspaceFolder, path: string, c
     }
 }
 
+// TODO: Extract to temporary locations and return the paths, leave it up to the user to move them
 async function downloadFile(name: string, uri: Uri, outPath: string, extract?: boolean) {
     return await window.withProgress<string>({
         location: ProgressLocation.Notification,
         title: `Downloading ${name}`,
         cancellable: true
     }, (progress, token) => {
-        return new Promise(async (resolve, reject) => {
-            // Get downloader API and begin to download the requested file
-            let fileDownloader = await getApi();
-            let lastProgress = 0;
-            
+        return new Promise(async (resolve, reject) => {            
             try {
-                let file = await fileDownloader.downloadFile(uri, outPath, mainContext, token, (downloaded, total) => {
+                let lastProgress = 0;
+                let file = await downloadHttpFile(uri, true, token, async (downloaded, total) => {
                     // Just return if we don't know how large the file is
                     if (!total) {
                         progress.report({ message: 'Please wait...' });
@@ -280,15 +289,15 @@ async function downloadFile(name: string, uri: Uri, outPath: string, extract?: b
                     }
     
                     // Otherwise, update the progress
-                    progress.report({ message: `Please wait...`, increment: downloaded - lastProgress });
+                    progress.report({ message: `Please wait...`, increment: (downloaded - lastProgress) / total * 100 });
                     lastProgress = downloaded;
-                }, { shouldUnzip: extract });
+                });
     
                 // Return the final path of the downloaded file
-                resolve(file.fsPath);   
+                resolve(file.fsPath);
             } catch (error) {
                 // The file failed to download, pass the error along
-                reject(`Failed to download ${name} (URL: ${uri}) | ${error}`);
+                reject(`Failed to download ${name} (URL: ${uri}) | ${_E(error)}`);
             }
         });
     });
@@ -300,7 +309,7 @@ async function prepareContent(): Promise<string> {
     // Download the libraries to a temporary data dir
     let tempDataPath = join(extDataPath, 'temp-data');
     if (existsSync(tempDataPath))
-        await fs.rmdir(tempDataPath, { recursive: true, force: true } as any);
+        await fs.rm(tempDataPath, { recursive: true, force: true });
 
     await fs.mkdir(tempDataPath, { recursive: true });
 
@@ -331,6 +340,11 @@ async function prepareContent(): Promise<string> {
                 await fs.rename(join(templatePath, (await fs.readdir(templatePath))[0]), targetTemplatePath);
                 await fs.rename(join(docsPath, (await fs.readdir(docsPath))[0]), targetDocsPath);
 
+                // Delete the temporary paths
+                await fs.rm(libPath, { recursive: true, force: true });
+                await fs.rm(templatePath, { recursive: true, force: true });
+                await fs.rm(docsPath, { recursive: true, force: true });
+
                 // Generate stubs
                 await generateStubs(join(targetDocsPath, 'types'), join(tempDataPath, 'types'));
 
@@ -338,7 +352,7 @@ async function prepareContent(): Promise<string> {
                 // and write a file to signal that the libraries have been prepared successfully
                 let dataPath = join(extDataPath, 'data');
                 if (existsSync(dataPath)) 
-                    await fs.rmdir(dataPath, { recursive: true, force: true } as any);
+                    await fs.rm(dataPath, { recursive: true, force: true });
 
                 await fs.rename(tempDataPath, dataPath);
                 await fs.writeFile(join(dataPath, '.complete'), '');
@@ -491,7 +505,8 @@ async function downloadContent() {
         await prepareContent();
     } catch (error) {
         // TODO: Show console errors instead of modals
-        window.showErrorMessage(_M('Failed to download content', [ error as string ]), { modal: true });
+        console.error(error);
+        window.showErrorMessage(_M('Failed to download content', [ _E(error) ]), { modal: true });
     }
 }
 
@@ -526,7 +541,7 @@ async function rebuildIntermediate(path?: string) {
                 try {
                     // Delete any intermediate files
                     if (existsSync(componentImPath))
-                    await fs.rmdir(componentImPath, { recursive: true, force: true } as any);
+                    await fs.rm(componentImPath, { recursive: true, force: true });
 
                     // Make a new intermediate file directory
                     await fs.mkdir(componentImPath, { recursive: true });
@@ -553,7 +568,7 @@ async function rebuildIntermediate(path?: string) {
                     resolve();
                 } catch (error) {
                     // If a failure happened while generating code, report it and return
-                    reject(`An error occurred while building intermediate types for component ${component}. IntelliSense may not work correctly. File: ${file}. ${error}`);
+                    reject(`An error occurred while building intermediate types for component ${component}. IntelliSense may not work correctly. File: ${file}. ${_E(error)}`);
                 }
             });
         });
@@ -603,7 +618,8 @@ function showActionMenu() {
                 await action.callback();
             } catch (error) {
                 // TODO: Show console errors instead of modals
-                window.showErrorMessage(_M('Failed to execute action', [ error as string ]), { modal: true });
+                console.error(error);
+                window.showErrorMessage(_M('Failed to execute action', [ _E(error) ]), { modal: true });
             } finally {
                 quickPick.dispose();
             }
@@ -663,14 +679,16 @@ export async function activate(context: ExtensionContext) {
             }
         } catch (error) {
             // TODO: Show console errors instead of modals
-            window.showErrorMessage(_M('Failed to download content', [ error as string ]), { modal: true });
+            console.error(error);
+            window.showErrorMessage(_M('Failed to download content', [ _E(error) ]), { modal: true });
         }
         
         try {
             await rebuildIntermediate();
         } catch (error) {
             // TODO: Show console errors instead of modals
-            window.showErrorMessage(_M('Failed to build intermediate files', [ error as string ]), { modal: true });
+            console.error(error);
+            window.showErrorMessage(_M('Failed to build intermediate files', [ _E(error) ]), { modal: true });
         }
     }
 
