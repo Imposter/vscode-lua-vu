@@ -146,7 +146,7 @@ function generateDocParam(name: string, p: IDocParam) {
             code += `${_LT(p.type)}`;
         }
 
-        if (p.nullable) {
+        if (p.nullable || p.default) {
             code += '|nil';
         }
     }
