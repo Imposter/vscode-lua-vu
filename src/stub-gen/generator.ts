@@ -108,9 +108,9 @@ function generateDocProperty(name: string, p: IDocProperty, comments?: string[])
     } else if (p.table) {
         code += `${_LT(p.type)}[]`; // Lua table
     } else if (p.nestedArray) {
-        // TODO: Implement
+        code += `vector|table<integer, vector|${_LT(p.type)}[]>`; // nestedArray
     } else if (p.nestedTable) {
-        // TODO: Implement
+        code += `table<integer, vector|${_LT(p.type)}[]>`; // nestedTable
     } else {
         code += `${_LT(p.type)}`;
     }
