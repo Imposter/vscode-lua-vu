@@ -178,9 +178,9 @@ function generateDocReturn(returns: IDocType | IDocType[], comments?: string[]) 
         } else if (r.table) {
             code += `${_LT(r.type)}[]`; // Lua table
         } else if (r.nestedArray) {
-            code += `vector|table<integer, vector|${_LT(p.type)}[]>`; // nestedArray
+            code += `vector|table<integer, vector|${_LT(r.type)}[]>`; // nestedArray
         } else if (r.nestedTable) {
-            code += `table<integer, vector|${_LT(p.type)}[]>`; // nestedTable
+            code += `table<integer, vector|${_LT(r.type)}[]>`; // nestedTable
         } else {
             code += `${_LT(r.type)}`;
         }
