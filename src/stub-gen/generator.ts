@@ -139,9 +139,9 @@ function generateDocParam(name: string, p: IDocParam) {
         } else if (p.table) {
             code += `${_LT(p.type)}[]`; // Lua table
         } else if (p.nestedArray) {
-            // TODO: Implement
+            code += `vector|table<integer, vector|${_LT(p.type)}[]>`; // nestedArray
         } else if (p.nestedTable) {
-            // TODO: Implement
+            code += `table<integer, vector|${_LT(p.type)}[]>`; // nestedTable
         } else {
             code += `${_LT(p.type)}`;
         }
@@ -178,9 +178,9 @@ function generateDocReturn(returns: IDocType | IDocType[], comments?: string[]) 
         } else if (r.table) {
             code += `${_LT(r.type)}[]`; // Lua table
         } else if (r.nestedArray) {
-            // TODO: Implement
+            code += `vector|table<integer, vector|${_LT(p.type)}[]>`; // nestedArray
         } else if (r.nestedTable) {
-            // TODO: Implement
+            code += `table<integer, vector|${_LT(p.type)}[]>`; // nestedTable
         } else {
             code += `${_LT(r.type)}`;
         }
