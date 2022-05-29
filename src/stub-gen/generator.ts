@@ -117,7 +117,7 @@ function generateDocProperty(name: string, p: IDocProperty, comments?: string[])
         } else if (p.nestedTable) {
             code += `table<integer, table<integer, ${_LT(p.type)}>>`; // nestedTable
         } else {
-            code += `${_LT(p.type)}[]`; // Lua table
+            code += `table<integer, ${_LT(p.type)}>`; // Lua table
         }
     } else {
         code += `${_LT(p.type)}`;
@@ -156,7 +156,7 @@ function generateDocParam(name: string, p: IDocParam) {
             } else if (p.nestedTable) {
                 code += `table<integer, table<integer, ${_LT(p.type)}>>`; // nestedTable
             } else {
-                code += `${_LT(p.type)}[]`; // Lua table
+                code += `table<integer, ${_LT(p.type)}>`; // Lua table
             }
         } else {
             code += `${_LT(p.type)}`;
@@ -203,7 +203,7 @@ function generateDocReturn(returns: IDocType | IDocType[], comments?: string[]) 
             } else if (r.nestedTable) {
                 code += `table<integer, table<integer, ${_LT(r.type)}>>`; // nestedTable
             } else {
-                code += `${_LT(r.type)}[]`; // Lua table
+                code += `table<integer, ${_LT(r.type)}>`; // Lua table
             }
         } else {
             code += `${_LT(r.type)}`;
