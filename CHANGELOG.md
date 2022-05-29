@@ -7,6 +7,7 @@ Pre-release
 - Remove dependency on mindaro-dev.file-downloader since it's not maintained [Issue 31](https://github.com/Imposter/vscode-lua-vu/issues/31)
 - Include stack trace in errors
 - Remove rmdir and use rm since rmdir will be deprecated in a future release
+
 ## 0.3.2
 
 Pre-release
