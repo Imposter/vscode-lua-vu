@@ -20,13 +20,13 @@ The following are the supported and planned features for this extension:
 - [x] Creating a new project
 - [x] Updating cached project templates and documentation
 - [x] Rebuilding intermediate code
-- [ ] Support for all Venice Unleashed types defined in the [documentation](https://veniceunleashed.net)
+- [x] Support for all Venice Unleashed types defined in the [documentation](https://veniceunleashed.net)
   - [x] Frostbite types
   - [x] Shared libraries/types
   - [x] Server libraries/types
-  - [ ] Client libraries/types
+  - [x] Client libraries/types
 - [x] Support for generating type information for user code
-- [ ] [Documentation](https://emmylua.github.io/) support
+- [x] [Documentation](https://emmylua.github.io/) support
 - [ ] Support for snippet generation
 
 ## Examples
@@ -61,7 +61,7 @@ local obj = MyObject('obj', Vec3(1.0, 2.0, 3.0))
 
 ## Known Issues
 
-- Incomplete implementation of parser against some of the EmmyLua [documentation](https://emmylua.github.io/) strings
+- Incomplete implementation of parser against some of the EmmyLua [documentation](https://emmylua.github.io/) doc strings
 - Lua Lexer/Parser does not currently support Lua 5.4
 
 ## Changelog

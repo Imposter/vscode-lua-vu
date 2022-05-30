@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.3.4
+
+Pre-release
+
+- Fix doc generation code to support default parameters (Thanks FlashHit) [Pull Request 32](https://github.com/Imposter/vscode-lua-vu/pull/32)
+- Fix doc generation code to support nested tables and nested arrays (Thanks FlashHit) [Pull Request 33](https://github.com/Imposter/vscode-lua-vu/pull/33)
+
 ## 0.3.3
 
 Pre-release
