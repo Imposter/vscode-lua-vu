@@ -98,34 +98,41 @@ function generateTypeComment(t: IDocType, opts?: { comments?: string[], readOnly
     return code;
 }
 
+function generateTypeString(t: IDocType, opts?: { nullable?: boolean, default?: boolean }) {
+    let code = ``;
+    if (t.array) {
+        if (t.nestedArray) {
+            code += `vector|vector[]|${_LT(t.type)}[][]>`; // nestedArray
+        } else if (t.nestedTable) {
+            code += `vector|table<integer, ${_LT(t.type)}[]>`; // nestedTable
+        } else {
+            code += `vector|${_LT(t.type)}[]`; // EASTL Vector
+        }
+    } else if (t.table) {
+        if (t.nestedArray) {
+            code += `table<integer, vector|${_LT(t.type)}[]>`; // nestedArray
+        } else if (t.nestedTable) {
+            code += `table<integer, table<integer, ${_LT(t.type)}>>`; // nestedTable
+        } else {
+            code += `table<integer, ${_LT(t.type)}>`; // Lua table
+        }
+    } else {
+        code += `${_LT(t.type)}`;
+    }
+
+    if (opts?.nullable || opts?.default) {
+        code += '|nil';
+    }
+
+    return code;
+}
+
 function generateDocProperty(name: string, p: IDocProperty, comments?: string[]) {
     let code = ``;
 
     // Write field doc comment
     code += `---@field ${name} `;
-    if (p.array) {
-        if (p.nestedArray) {
-            code += `vector|vector[]|${_LT(p.type)}[][]>`; // nestedArray
-        } else if (p.nestedTable) {
-            code += `vector|table<integer, ${_LT(p.type)}[]>`; // nestedTable
-        } else {
-            code += `vector|${_LT(p.type)}[]`; // EASTL Vector
-        }
-    } else if (p.table) {
-        if (p.nestedArray) {
-            code += `table<integer, vector|${_LT(p.type)}[]>`; // nestedArray
-        } else if (p.nestedTable) {
-            code += `table<integer, table<integer, ${_LT(p.type)}>>`; // nestedTable
-        } else {
-            code += `table<integer, ${_LT(p.type)}>`; // Lua table
-        }
-    } else {
-        code += `${_LT(p.type)}`;
-    }
-
-    if (p.nullable) {
-        code += '|nil';
-    }
+    code += generateTypeString(p, { nullable: p.nullable });
 
     // Generate and add comment for parameter
     code += generateTypeComment(p, { comments: comments, readOnly: p.readOnly });
@@ -142,29 +149,7 @@ function generateDocParam(name: string, p: IDocParam) {
     } else {
         // Write param doc comment
         code += `---@param ${name} `;
-        if (p.array) {
-            if (p.nestedArray) {
-                code += `vector|vector[]|${_LT(p.type)}[][]>`; // nestedArray
-            } else if (p.nestedTable) {
-                code += `vector|table<integer, ${_LT(p.type)}[]>`; // nestedTable
-            } else {
-                code += `vector|${_LT(p.type)}[]`; // EASTL Vector
-            }
-        } else if (p.table) {
-            if (p.nestedArray) {
-                code += `table<integer, vector|${_LT(p.type)}[]>`; // nestedArray
-            } else if (p.nestedTable) {
-                code += `table<integer, table<integer, ${_LT(p.type)}>>`; // nestedTable
-            } else {
-                code += `table<integer, ${_LT(p.type)}>`; // Lua table
-            }
-        } else {
-            code += `${_LT(p.type)}`;
-        }
-
-        if (p.nullable || p.default) {
-            code += '|nil';
-        }
+        code += generateTypeString(p, { nullable: p.nullable, default: p.default != null });
     }
 
     // Generate and add comment for parameter
@@ -189,29 +174,7 @@ function generateDocReturn(returns: IDocType | IDocType[], comments?: string[]) 
         // Write return doc comment
         let r = returns as IDocType;
         code += `---@return `;
-        if (r.array) {
-            if (r.nestedArray) {
-                code += `vector|vector[]|${_LT(r.type)}[][]>`; // nestedArray
-            } else if (r.nestedTable) {
-                code += `vector|table<integer, ${_LT(r.type)}[]>`; // nestedTable
-            } else {
-                code += `vector|${_LT(r.type)}[]`; // EASTL Vector
-            }
-        } else if (r.table) {
-            if (r.nestedArray) {
-                code += `table<integer, vector|${_LT(r.type)}[]>`; // nestedArray
-            } else if (r.nestedTable) {
-                code += `table<integer, table<integer, ${_LT(r.type)}>>`; // nestedTable
-            } else {
-                code += `table<integer, ${_LT(r.type)}>`; // Lua table
-            }
-        } else {
-            code += `${_LT(r.type)}`;
-        }
-
-        if (r.nullable) {
-            code += '|nil';
-        }
+        code += generateTypeString(r, { nullable: r.nullable });
 
         // Generate and add comment for parameter
         code += generateTypeComment(r, { comments: comments });
