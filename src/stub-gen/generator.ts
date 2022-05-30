@@ -104,13 +104,21 @@ function generateDocProperty(name: string, p: IDocProperty, comments?: string[])
     // Write field doc comment
     code += `---@field ${name} `;
     if (p.array) {
-        code += `vector|${_LT(p.type)}[]`; // EASTL Vector
+        if (p.nestedArray) {
+            code += `vector|vector[]|${_LT(p.type)}[][]>`; // nestedArray
+        } else if (p.nestedTable) {
+            code += `vector|table<integer, ${_LT(p.type)}[]>`; // nestedTable
+        } else {
+            code += `vector|${_LT(p.type)}[]`; // EASTL Vector
+        }
     } else if (p.table) {
-        code += `${_LT(p.type)}[]`; // Lua table
-    } else if (p.nestedArray) {
-        code += `vector|table<integer, vector|${_LT(p.type)}[]>`; // nestedArray
-    } else if (p.nestedTable) {
-        code += `table<integer, vector|${_LT(p.type)}[]>`; // nestedTable
+        if (p.nestedArray) {
+            code += `table<integer, vector|${_LT(p.type)}[]>`; // nestedArray
+        } else if (p.nestedTable) {
+            code += `table<integer, table<integer, ${_LT(p.type)}>>`; // nestedTable
+        } else {
+            code += `table<integer, ${_LT(p.type)}>`; // Lua table
+        }
     } else {
         code += `${_LT(p.type)}`;
     }
@@ -135,13 +143,21 @@ function generateDocParam(name: string, p: IDocParam) {
         // Write param doc comment
         code += `---@param ${name} `;
         if (p.array) {
-            code += `vector|${_LT(p.type)}[]`; // EASTL Vector
+            if (p.nestedArray) {
+                code += `vector|vector[]|${_LT(p.type)}[][]>`; // nestedArray
+            } else if (p.nestedTable) {
+                code += `vector|table<integer, ${_LT(p.type)}[]>`; // nestedTable
+            } else {
+                code += `vector|${_LT(p.type)}[]`; // EASTL Vector
+            }
         } else if (p.table) {
-            code += `${_LT(p.type)}[]`; // Lua table
-        } else if (p.nestedArray) {
-            code += `vector|table<integer, vector|${_LT(p.type)}[]>`; // nestedArray
-        } else if (p.nestedTable) {
-            code += `table<integer, vector|${_LT(p.type)}[]>`; // nestedTable
+            if (p.nestedArray) {
+                code += `table<integer, vector|${_LT(p.type)}[]>`; // nestedArray
+            } else if (p.nestedTable) {
+                code += `table<integer, table<integer, ${_LT(p.type)}>>`; // nestedTable
+            } else {
+                code += `table<integer, ${_LT(p.type)}>`; // Lua table
+            }
         } else {
             code += `${_LT(p.type)}`;
         }
@@ -174,13 +190,21 @@ function generateDocReturn(returns: IDocType | IDocType[], comments?: string[]) 
         let r = returns as IDocType;
         code += `---@return `;
         if (r.array) {
-            code += `vector|${_LT(r.type)}[]`; // EASTL Vector
+            if (r.nestedArray) {
+                code += `vector|vector[]|${_LT(r.type)}[][]>`; // nestedArray
+            } else if (r.nestedTable) {
+                code += `vector|table<integer, ${_LT(r.type)}[]>`; // nestedTable
+            } else {
+                code += `vector|${_LT(r.type)}[]`; // EASTL Vector
+            }
         } else if (r.table) {
-            code += `${_LT(r.type)}[]`; // Lua table
-        } else if (r.nestedArray) {
-            code += `vector|table<integer, vector|${_LT(r.type)}[]>`; // nestedArray
-        } else if (r.nestedTable) {
-            code += `table<integer, vector|${_LT(r.type)}[]>`; // nestedTable
+            if (r.nestedArray) {
+                code += `table<integer, vector|${_LT(r.type)}[]>`; // nestedArray
+            } else if (r.nestedTable) {
+                code += `table<integer, table<integer, ${_LT(r.type)}>>`; // nestedTable
+            } else {
+                code += `table<integer, ${_LT(r.type)}>`; // Lua table
+            }
         } else {
             code += `${_LT(r.type)}`;
         }
