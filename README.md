@@ -25,7 +25,6 @@ The following are the supported and planned features for this extension:
   - [x] Shared libraries/types
   - [x] Server libraries/types
   - [ ] Client libraries/types
-    - This currently requires additional work in the form of implementing nested tables/vectors
 - [x] Support for generating type information for user code
 - [ ] [Documentation](https://emmylua.github.io/) support
 - [ ] Support for snippet generation
@@ -63,7 +62,6 @@ local obj = MyObject('obj', Vec3(1.0, 2.0, 3.0))
 ## Known Issues
 
 - Incomplete implementation of parser against some of the EmmyLua [documentation](https://emmylua.github.io/) strings
-- Incomplete VU document processing will give wrong output for nested tables and nested arrays
 - Lua Lexer/Parser does not currently support Lua 5.4
 
 ## Changelog
@@ -82,7 +80,7 @@ Venice Unleashed Developers:
 
 Contributors:
 
-- [FlashHit](https://github.com/FlashHit) For doing research to improve this extension and making sure I actually work on this extension 😂
+- [FlashHit](https://github.com/FlashHit) For actively doing research and contributing this extension ♥
 
 For libraries and technologies used by this extension:
 
