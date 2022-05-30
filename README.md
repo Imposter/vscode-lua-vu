@@ -80,7 +80,7 @@ Venice Unleashed Developers:
 
 Contributors:
 
-- [FlashHit](https://github.com/FlashHit) For actively doing research and contributing this extension ♥
+- [FlashHit](https://github.com/FlashHit) For actively doing research and contributing to this extension ♥
 
 For libraries and technologies used by this extension:
 
