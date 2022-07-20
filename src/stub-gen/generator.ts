@@ -273,7 +273,7 @@ function visitEnum(e: IDocEnum, comments?: string[]): string {
         let code = ``;
         
         // Generate enum and constant code
-        code += `---@class ${e.name}` + EOL;
+        code += `---@enum ${e.name}` + EOL;
         code += `---${e.name} (Enum)` + EOL;
         
         // Write additional comments
