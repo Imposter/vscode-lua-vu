@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.3.5
+
+Pre-release
+
+- Fix bug when a new project is created in a directory that already contains a file [Issue 35](https://github.com/Imposter/vscode-lua-vu/issues/35)
+- Add support for Enums (Thanks FlashHit) [Pull Request 36](https://github.com/Imposter/vscode-lua-vu/pull/36)
+- Add support for generation of class operators
+
 ## 0.3.4
 
 Pre-release
