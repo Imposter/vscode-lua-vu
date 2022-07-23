@@ -28,6 +28,15 @@ function _LT(type: string) {
     return type;
 }
 
+function _LOT(operatorType: string) {
+    if (operatorType == 'add') return 'add';
+    if (operatorType == 'sub') return 'sub';
+    if (operatorType == 'mult') return 'mul';
+    if (operatorType == 'div') return 'div';
+    if (operatorType == 'mod') return 'mod';
+    return null;
+}
+
 function generateHeader(name: string, type: string, kind: string) {
     let code = ``;
 
@@ -136,6 +145,20 @@ function generateDocProperty(name: string, p: IDocProperty, comments?: string[])
 
     // Generate and add comment for parameter
     code += generateTypeComment(p, { comments: comments, readOnly: p.readOnly });
+
+    return code;
+}
+
+function generateDocOperator(op: IDocOperator) {
+    let code = ``;
+
+    // Write operator doc comment
+    let operatorType = _LOT(op.type);
+    if (operatorType == null) {
+        return `-- WARNING: Operator type not supported: ${op.type} (rhs: ${op.rhs}, returns: ${op.returns})`;
+    }
+
+    code += `---@operator ${operatorType}(${_LT(op.rhs)}): ${_LT(op.returns)}`;
 
     return code;
 }
@@ -315,6 +338,13 @@ function visitClass(c: IDocClass, comments?: string[]): string {
                 code += generateDocProperty(name, prop, [ "Static" ]) + EOL;
             }
         }
+
+        // Generate operators
+        if (c.operators) {
+            for (let op of c.operators) {
+                code += generateDocOperator(op) + EOL;
+            }
+        }
         
         // Append class definition
         code += `---${c.name} (Class)` + EOL;
@@ -350,8 +380,6 @@ function visitClass(c: IDocClass, comments?: string[]): string {
         });
         code += EOL;
 
-        // TODO: Generate operators (?)
-
         return code;
     });
 }
@@ -381,8 +409,6 @@ function visitLibrary(l: IDocLibrary, comments?: string[]): string {
             return code;
         });
         code += EOL;
-
-        // TODO: Generate operators (?)
 
         return code;
     });
