@@ -102,8 +102,9 @@ async function findVuaProject(path: string) {
 
     var files = await fs.readdir(path);
     for (let f of files) {
-        let stat = await fs.lstat(f);
-        if (stat.isFile() && isVuaProject(f)) {
+        let filePath = join(path, f);
+        let stat = await fs.lstat(filePath);
+        if (stat.isFile() && isVuaProject(filePath)) {
             return f;
         }
     }

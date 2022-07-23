@@ -61,7 +61,6 @@ local obj = MyObject('obj', Vec3(1.0, 2.0, 3.0))
 
 ## Known Issues
 
-- Incomplete implementation of parser against some of the EmmyLua [documentation](https://emmylua.github.io/) doc strings
 - Lua Lexer/Parser does not currently support Lua 5.4
 
 ## Changelog
