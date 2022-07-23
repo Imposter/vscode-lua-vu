@@ -59,10 +59,6 @@ end
 local obj = MyObject('obj', Vec3(1.0, 2.0, 3.0))
 ```
 
-## Known Issues
-
-- Lua Lexer/Parser does not currently support Lua 5.4
-
 ## Changelog
 
 See [changelog](CHANGELOG.md) for more information.
