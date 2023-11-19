@@ -8,7 +8,9 @@ import {
     IDocOperator,
     IDocClass,
     IDocEnum,
-    IDocLibrary
+    IDocLibrary,
+    IDocEvent,
+    IDocHook
 } from './doc-type';
 
 import { promisify } from 'util';
@@ -260,7 +262,7 @@ function generateConstructor(name: string, c: IDocConstructor, comments?: string
     return code;
 }
 
-function generateMethod(name: string, m: IDocMethod, comments?: string[]) {
+function generateMethod(name: string, m: IDocMethod, comments?: string[], miscDocs?: string[]) {
     let code = ``;
 
     // Write additional comments
@@ -283,6 +285,11 @@ function generateMethod(name: string, m: IDocMethod, comments?: string[]) {
     // Write return statement
     if (m.returns) {
         code += generateDocReturn(m.returns) + EOL;
+    }
+
+    // Write misc docs
+    if (miscDocs && miscDocs.length > 0) {
+        code += miscDocs.join(EOL) + EOL;
     }
 
     // Write function stub
@@ -372,7 +379,7 @@ function visitClass(c: IDocClass, comments?: string[]): string {
             // Generate code for methods
             if (c.methods) {
                 for (let m of c.methods) {
-                    code += generateMethod(c.name, m, comments) + EOL + EOL;
+                    code += generateMethod(c.name, m, comments, []) + EOL + EOL;
                 }
             }
             
@@ -402,7 +409,137 @@ function visitLibrary(l: IDocLibrary, comments?: string[]): string {
             // Generate code for methods
             if (l.methods) {
                 for (let m of l.methods) {
-                    code += generateMethod(l.name, m, comments) + EOL + EOL;
+                    code += generateMethod(l.name, m, comments, []) + EOL + EOL;
+                }
+            }
+            
+            return code;
+        });
+        code += EOL;
+
+        return code;
+    });
+}
+
+// TODO: Add support for Hooks library. Then see if the code can be simplified to reduce duplication.
+function visitEventsLibrary(l: IDocLibrary, events: IDocEvent[], comments?: string[]): string {
+    return generateSection('Library', () => {
+        let code = ``;
+
+        // Generate class from library
+        code += `---@class ${l.name}` + EOL;
+
+        // Append class definition
+        code += `---${l.name} (Library)` + EOL;
+        code += `${l.name} = {}` + EOL + EOL;
+
+        // Generate methods
+        code += generateSection('Methods', () => {
+            let code = ``;
+
+            // Generate code for methods
+            if (l.methods) {
+                for (let m of l.methods) {                    
+                    // For each event in events, generate an overload
+                    let miscDocs = [];
+                    for (let event of events) {
+                        if (m.name != 'Subscribe' || m.params == null || m.params['eventName'] == null || m.params['callback'] == null) continue;
+
+                        // Generate the overload comment
+                        let overloadComment = `---@overload fun(self: Events, eventName: '"${event.name}"'`;
+                        // Generate all parameters except callback
+                        for (let [n, param] of Object.entries(m.params)) {
+                            if (n == 'eventName' || n == 'callback') continue;
+                            overloadComment += `, ${n}: ${generateTypeString(param)}`;
+                        }
+
+                        // Generate the callback parameter
+                        overloadComment += `, callback: fun(`;
+                        if (event.params) {
+                            let names = Object.keys(event.params);
+                            for (let i = 0; i < names.length; i++) {
+                                let name = names[i];
+                                let param = event.params[name];
+
+                                overloadComment += `${name}: ${generateTypeString(param)}`;
+                                if (i != names.length - 1) overloadComment += ', ';
+                            }
+                        }
+                        overloadComment += ')): Event';
+
+                        miscDocs.push(overloadComment);
+                    }
+
+                    code += generateMethod(l.name, m, comments, miscDocs) + EOL + EOL;
+                }
+            }
+            
+            return code;
+        });
+        code += EOL;
+
+        return code;
+    });
+}
+
+function visitHooksLibrary(l: IDocLibrary, hooks: IDocHook[], comments?: string[]): string {
+    return generateSection('Library', () => {
+        let code = ``;
+
+        // Generate class from library
+        code += `---@class ${l.name}` + EOL;
+
+        // Append class definition
+        code += `---${l.name} (Library)` + EOL;
+        code += `${l.name} = {}` + EOL + EOL;
+
+        // Generate methods
+        code += generateSection('Methods', () => {
+            let code = ``;
+
+            // Generate code for methods
+            if (l.methods) {
+                for (let m of l.methods) {                    
+                    // For each event in events, generate an overload
+                    let miscDocs = [];
+                    for (let hook of hooks) {
+                        if (m.name != 'Install' || m.params == null || m.params['hookName'] == null || m.params['callback'] == null) continue;
+
+                        // Generate the overload comment
+                        let overloadComment = `---@overload fun(self: Hooks, eventName: '"${hook.name}"'`;
+                        // Generate all parameters except callback
+                        for (let [n, param] of Object.entries(m.params)) {
+                            if (n == 'hookName' || n == 'callback') continue;
+                            overloadComment += `, ${n}: ${generateTypeString(param)}`;
+                        }
+
+                        // Generate the callback parameter
+                        overloadComment += `, callback: fun(hookCtx: HookContext, `;
+                        if (hook.params) {
+                            let names = Object.keys(hook.params);
+                            for (let i = 0; i < names.length; i++) {
+                                let name = names[i];
+                                let param = hook.params[name];
+
+                                overloadComment += `${name}: ${generateTypeString(param)}`;
+                                if (i != names.length - 1) overloadComment += ', ';
+                            }
+                        }
+                        overloadComment += ')';
+                        if (hook.returns) {
+                            if (Array.isArray(hook.returns)) {
+                                throw new Error(`Multiple returns are not supported for hooks`);
+                            }
+
+                            overloadComment += `: ${generateTypeString(hook.returns)}`;
+                        }
+
+                        overloadComment += '): Hook';
+
+                        miscDocs.push(overloadComment);
+                    }
+                
+                    code += generateMethod(l.name, m, comments, miscDocs) + EOL + EOL;
                 }
             }
             
@@ -431,38 +568,134 @@ function visit(data: IDocument, kind: string, comments?: string[]): string {
     return code;
 }
 
-async function generateTypes(docsPath: string, outPath: string, path: string, kind: string, comments?: string[]) {
+async function readDocument(docsPath: string, path: string, doc: string): Promise<IDocument> {
+    // Read document
+    let filePath = join(docsPath, path, `${doc}.yaml`);
+    let buffer = await fs.readFile(filePath);
+    let document = load(buffer.toString()) as IDocument;
+
+    return document;
+}
+
+async function readDocumentsInPath(docsPath: string, path: string): Promise<IDocument[]> {
+    // Read all files in directory
+    let filePaths = await globAsync(join(docsPath, path, '*.yaml'));
+
+    // Read all documents
+    let documents: IDocument[] = [];
+    for (let filePath of filePaths) {
+        let doc = filePath.split('/').pop()!.split('.')[0];
+        let document = await readDocument(docsPath, path, doc);
+        documents.push(document);
+    }
+
+    return documents;
+}
+
+async function generateEventsLibrary(docsPath: string, outPath: string, path: string, kind: string, comments?: string[]) {
+    console.log(`Generating ${kind} code for Events library...`);
+
+    // Read document
+    let document = await readDocument(docsPath, join('shared', 'library'), 'Events');
+
+    if (document.type != 'library') {
+        throw new Error(`expected document type library, got ${document.type}`);
+    }
+
+    // Read all events
+    let events = (await readDocumentsInPath(docsPath, join(path, 'event'))).filter(d => d.type == 'event') as IDocEvent[];
+    
+    // Add header
+    let code = generateHeader(document.name, document.type, kind) + EOL;
+
+    // Generate code
+    code += visitEventsLibrary(document as IDocLibrary, events, comments);
+
+    // Ensure the output path exists
+    let pathDir = join(outPath, path, 'library')        
+    if (!existsSync(pathDir))
+        await fs.mkdir(pathDir, { recursive: true });
+
+    // Write code
+    await fs.writeFile(join(pathDir, `Events.lua`), code);
+}
+
+async function generateHooksLibrary(docsPath: string, outPath: string, path: string, kind: string, comments?: string[]) {
+    console.log(`Generating ${kind} code for Hooks library...`);
+
+    // Read document
+    let document = await readDocument(docsPath, join('shared', 'library'), 'Hooks');
+
+    if (document.type != 'library') {
+        throw new Error(`expected document type library, got ${document.type}`);
+    }
+
+    // Read all events
+    let hooks = (await readDocumentsInPath(docsPath, join(path, 'hook'))).filter(d => d.type == 'hook') as IDocHook[];
+    
+    // Add header
+    let code = generateHeader(document.name, document.type, kind) + EOL;
+
+    // Generate code
+    code += visitHooksLibrary(document as IDocLibrary, hooks, comments);
+
+    // Ensure the output path exists
+    let pathDir = join(outPath, path, 'library')        
+    if (!existsSync(pathDir))
+        await fs.mkdir(pathDir, { recursive: true });
+
+    // Write code
+    await fs.writeFile(join(pathDir, `Hooks.lua`), code);
+}
+
+async function generateTypesForDoc(docsPath: string, outPath: string, path: string, doc: string, kind: string, comments?: string[]) {
+    // Read document
+    let document = await readDocument(docsPath, path, doc);
+    console.log(`Generating ${kind} code for ${document.name}...`);
+
+    // Generate code
+    let code = visit(document, kind, comments);
+
+    // Ensure the output path exists
+    let pathDir = join(outPath, path)        
+    if (!existsSync(pathDir))
+        await fs.mkdir(pathDir, { recursive: true });
+
+    // Write code
+    await fs.writeFile(join(pathDir, `${document.name}.lua`), code);
+}
+
+async function generateTypes(docsPath: string, outPath: string, path: string, excludeDocs: string[], kind: string, comments?: string[]) {
     // Read all files in directory
     let filePaths = await globAsync(join(docsPath, path, '*.yaml'));
 
     // Generate code for all the defined classes/libraries
     for (let filePath of filePaths) {
-        // Read document
-        let buffer = await fs.readFile(filePath);
-        let document = load(buffer.toString()) as IDocument;
-        console.log(`Generating ${kind} code for ${document.name}...`);
+        let doc = filePath.split('/').pop()!.split('.')[0];
+        if (excludeDocs.includes(doc)) continue;
 
-        // Generate code
-        let code = visit(document, kind, comments);
-
-        // Ensure the output path exists
-        let pathDir = join(outPath, path)        
-        if (!existsSync(pathDir))
-            await fs.mkdir(pathDir, { recursive: true });
-
-        // Write code
-        await fs.writeFile(join(pathDir, `${document.name}.lua`), code);
+        await generateTypesForDoc(docsPath, outPath, path, doc, kind, comments);
     }
 }
 
 export async function generate(docsPath: string, outPath: string) {
     // Generate types
-    await generateTypes(docsPath, outPath, 'fb', 'Frostbite', [ '`SERVER/CLIENT`' ]);
-    await generateTypes(docsPath, outPath, 'shared/type', 'Shared', [ '`SERVER/CLIENT`' ]);
-    await generateTypes(docsPath, outPath, 'server/type', 'Server', [ '`SERVER ONLY`' ]);
-    await generateTypes(docsPath, outPath, 'client/type', 'Client', [ '`CLIENT ONLY`' ]);
+    await generateTypes(docsPath, outPath, 'fb', [], 'Frostbite', [ '`SERVER/CLIENT`' ]);
+    await generateTypes(docsPath, outPath, 'shared/type', [], 'Shared', [ '`SERVER/CLIENT`' ]);
+    await generateTypes(docsPath, outPath, 'server/type', [], 'Server', [ '`SERVER ONLY`' ]);
+    await generateTypes(docsPath, outPath, 'client/type', [], 'Client', [ '`CLIENT ONLY`' ]);
     
-    await generateTypes(docsPath, outPath, 'shared/library', 'Shared', [ '`SERVER/CLIENT`' ]);
-    await generateTypes(docsPath, outPath, 'server/library', 'Server', [ '`SERVER ONLY`' ]);
-    await generateTypes(docsPath, outPath, 'client/library', 'Client', [ '`CLIENT ONLY`' ]);
+    await generateTypes(docsPath, outPath, 'shared/library', [ 'Events', 'Hooks' ], 'Shared', [ '`SERVER/CLIENT`' ]);
+    await generateTypes(docsPath, outPath, 'server/library', [], 'Server', [ '`SERVER ONLY`' ]);
+    await generateTypes(docsPath, outPath, 'client/library', [], 'Client', [ '`CLIENT ONLY`' ]);
+
+    // Generate events
+    await generateEventsLibrary(docsPath, outPath, 'shared', 'Shared', [ '`SERVER/CLIENT`' ]);
+    await generateEventsLibrary(docsPath, outPath, 'server', 'Server', [ '`SERVER ONLY`' ]);
+    await generateEventsLibrary(docsPath, outPath, 'client', 'Client', [ '`CLIENT ONLY`' ]);
+
+    // Generate hooks
+    await generateHooksLibrary(docsPath, outPath, 'shared', 'Shared', [ '`SERVER/CLIENT`' ]);
+    await generateHooksLibrary(docsPath, outPath, 'server', 'Server', [ '`SERVER ONLY`' ]);
+    await generateHooksLibrary(docsPath, outPath, 'client', 'Client', [ '`CLIENT ONLY`' ]);
 }

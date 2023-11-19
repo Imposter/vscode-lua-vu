@@ -2,7 +2,7 @@
 
 export interface IDocument {
     name: string;
-    type: 'class' | 'library' | 'enum';
+    type: 'class' | 'library' | 'enum' | 'event' | 'hook';
 }
 
 export interface IDocType {
@@ -58,4 +58,13 @@ export interface IDocEnum extends IDocument {
 
 export interface IDocLibrary extends IDocument {
     methods: IDocMethod[];
+}
+
+export interface IDocEvent extends IDocument {
+    params?: { [name: string]: IDocParam };
+}
+
+export interface IDocHook extends IDocument {
+    params?: { [name: string]: IDocParam };
+    returns?: IDocType | IDocType[];
 }

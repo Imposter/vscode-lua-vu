@@ -50,7 +50,7 @@ interface VsCodeWorkspace {
 
 const LIB_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-lib' };
 const TEMPLATE_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-template' };
-const DOCS_REPO: GitHubRepository = { user: 'EmulatorNexus', name: 'VU-Docs', branch: 'master' };
+const DOCS_REPO: GitHubRepository = { user: 'VeniceUnleashed', name: 'VU-Docs', branch: 'master' };
 
 const MOD_COMPONENTS = [ 'Shared', 'Server', 'Client' ];
 
