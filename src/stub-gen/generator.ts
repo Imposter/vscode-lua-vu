@@ -391,38 +391,7 @@ function visitClass(c: IDocClass, comments?: string[]): string {
     });
 }
 
-function visitLibrary(l: IDocLibrary, comments?: string[]): string {
-    return generateSection('Library', () => {
-        let code = ``;
-
-        // Generate class from library
-        code += `---@class ${l.name}` + EOL;
-
-        // Append class definition
-        code += `---${l.name} (Library)` + EOL;
-        code += `${l.name} = {}` + EOL + EOL;
-
-        // Generate methods
-        code += generateSection('Methods', () => {
-            let code = ``;
-
-            // Generate code for methods
-            if (l.methods) {
-                for (let m of l.methods) {
-                    code += generateMethod(l.name, m, comments, []) + EOL + EOL;
-                }
-            }
-            
-            return code;
-        });
-        code += EOL;
-
-        return code;
-    });
-}
-
-// TODO: Add support for Hooks library. Then see if the code can be simplified to reduce duplication.
-function visitEventsLibrary(l: IDocLibrary, events: IDocEvent[], comments?: string[]): string {
+function visitLibrary(l: IDocLibrary, items: IDocument[], miscGeneratorFunc: (m: IDocMethod, items: IDocument[]) => string[], comments?: string[]): string {
     return generateSection('Library', () => {
         let code = ``;
 
@@ -440,35 +409,7 @@ function visitEventsLibrary(l: IDocLibrary, events: IDocEvent[], comments?: stri
             // Generate code for methods
             if (l.methods) {
                 for (let m of l.methods) {                    
-                    // For each event in events, generate an overload
-                    let miscDocs = [];
-                    for (let event of events) {
-                        if (m.name != 'Subscribe' || m.params == null || m.params['eventName'] == null || m.params['callback'] == null) continue;
-
-                        // Generate the overload comment
-                        let overloadComment = `---@overload fun(self: Events, eventName: '"${event.name}"'`;
-                        // Generate all parameters except callback
-                        for (let [n, param] of Object.entries(m.params)) {
-                            if (n == 'eventName' || n == 'callback') continue;
-                            overloadComment += `, ${n}: ${generateTypeString(param)}`;
-                        }
-
-                        // Generate the callback parameter
-                        overloadComment += `, callback: fun(`;
-                        if (event.params) {
-                            let names = Object.keys(event.params);
-                            for (let i = 0; i < names.length; i++) {
-                                let name = names[i];
-                                let param = event.params[name];
-
-                                overloadComment += `${name}: ${generateTypeString(param)}`;
-                                if (i != names.length - 1) overloadComment += ', ';
-                            }
-                        }
-                        overloadComment += ')): Event';
-
-                        miscDocs.push(overloadComment);
-                    }
+                    let miscDocs = miscGeneratorFunc(m, items);
 
                     code += generateMethod(l.name, m, comments, miscDocs) + EOL + EOL;
                 }
@@ -482,73 +423,82 @@ function visitEventsLibrary(l: IDocLibrary, events: IDocEvent[], comments?: stri
     });
 }
 
-function visitHooksLibrary(l: IDocLibrary, hooks: IDocHook[], comments?: string[]): string {
-    return generateSection('Library', () => {
-        let code = ``;
+// TODO: Create overload doc generating method
+function getEventsMethodOverloads(m: IDocMethod, events: IDocEvent[]): string[] {
+    let overloads = [];
+    for (let event of events) {
+        if (m.name != 'Subscribe' || m.params == null || m.params['eventName'] == null || m.params['callback'] == null) continue;
 
-        // Generate class from library
-        code += `---@class ${l.name}` + EOL;
+        // Generate the overload comment
+        let overloadComment = `---@overload fun(self: Events, eventName: '"${event.name}"'`;
 
-        // Append class definition
-        code += `---${l.name} (Library)` + EOL;
-        code += `${l.name} = {}` + EOL + EOL;
+        // Generate all parameters except callback
+        for (let [n, param] of Object.entries(m.params)) {
+            if (n == 'eventName' || n == 'callback') continue;
+            overloadComment += `, ${n}: ${generateTypeString(param)}`;
+        }
 
-        // Generate methods
-        code += generateSection('Methods', () => {
-            let code = ``;
+        // Generate the callback parameter
+        overloadComment += `, callback: fun(`;
+        if (event.params) {
+            let names = Object.keys(event.params);
+            for (let i = 0; i < names.length; i++) {
+                let name = names[i];
+                let param = event.params[name];
 
-            // Generate code for methods
-            if (l.methods) {
-                for (let m of l.methods) {                    
-                    // For each event in events, generate an overload
-                    let miscDocs = [];
-                    for (let hook of hooks) {
-                        if (m.name != 'Install' || m.params == null || m.params['hookName'] == null || m.params['callback'] == null) continue;
-
-                        // Generate the overload comment
-                        let overloadComment = `---@overload fun(self: Hooks, eventName: '"${hook.name}"'`;
-                        // Generate all parameters except callback
-                        for (let [n, param] of Object.entries(m.params)) {
-                            if (n == 'hookName' || n == 'callback') continue;
-                            overloadComment += `, ${n}: ${generateTypeString(param)}`;
-                        }
-
-                        // Generate the callback parameter
-                        overloadComment += `, callback: fun(hookCtx: HookContext, `;
-                        if (hook.params) {
-                            let names = Object.keys(hook.params);
-                            for (let i = 0; i < names.length; i++) {
-                                let name = names[i];
-                                let param = hook.params[name];
-
-                                overloadComment += `${name}: ${generateTypeString(param)}`;
-                                if (i != names.length - 1) overloadComment += ', ';
-                            }
-                        }
-                        overloadComment += ')';
-                        if (hook.returns) {
-                            if (Array.isArray(hook.returns)) {
-                                throw new Error(`Multiple returns are not supported for hooks`);
-                            }
-
-                            overloadComment += `: ${generateTypeString(hook.returns)}`;
-                        }
-
-                        overloadComment += '): Hook';
-
-                        miscDocs.push(overloadComment);
-                    }
-                
-                    code += generateMethod(l.name, m, comments, miscDocs) + EOL + EOL;
-                }
+                overloadComment += `${name}: ${generateTypeString(param)}`;
+                if (i != names.length - 1) overloadComment += ', ';
             }
-            
-            return code;
-        });
-        code += EOL;
+        }
+        overloadComment += ')): Event';
 
-        return code;
-    });
+        overloads.push(overloadComment);
+    }
+
+    return overloads;
+}
+
+function getHooksMethodOverloads(m: IDocMethod, hooks: IDocHook[]): string[] {
+    let overloads = [];
+    for (let hook of hooks) {
+        if (m.name != 'Install' || m.params == null || m.params['hookName'] == null || m.params['callback'] == null) continue;
+
+        // Generate the overload comment
+        let overloadComment = `---@overload fun(self: Hooks, eventName: '"${hook.name}"'`;
+       
+        // Generate all parameters except callback
+        for (let [n, param] of Object.entries(m.params)) {
+            if (n == 'hookName' || n == 'callback') continue;
+            overloadComment += `, ${n}: ${generateTypeString(param)}`;
+        }
+
+        // Generate the callback parameter
+        overloadComment += `, callback: fun(hookCtx: HookContext, `;
+        if (hook.params) {
+            let names = Object.keys(hook.params);
+            for (let i = 0; i < names.length; i++) {
+                let name = names[i];
+                let param = hook.params[name];
+
+                overloadComment += `${name}: ${generateTypeString(param)}`;
+                if (i != names.length - 1) overloadComment += ', ';
+            }
+        }
+        overloadComment += ')';
+        if (hook.returns) {
+            if (Array.isArray(hook.returns)) {
+                throw new Error(`Multiple returns are not supported for hooks`);
+            }
+
+            overloadComment += `: ${generateTypeString(hook.returns)}`;
+        }
+
+        overloadComment += '): Hook';
+
+        overloads.push(overloadComment);
+    }
+
+    return overloads;
 }
 
 function visit(data: IDocument, kind: string, comments?: string[]): string {
@@ -560,7 +510,7 @@ function visit(data: IDocument, kind: string, comments?: string[]): string {
     } else if (data.type == 'class') {
         code += visitClass(data as IDocClass, comments);
     } else if (data.type == 'library') {
-        code += visitLibrary(data as IDocLibrary, comments);
+        code += visitLibrary(data as IDocLibrary, [], (_1, _2) => [], comments);
     } else {
         throw new Error(`unknown document type ${data.type}`);
     }
@@ -609,7 +559,7 @@ async function generateEventsLibrary(docsPath: string, outPath: string, path: st
     let code = generateHeader(document.name, document.type, kind) + EOL;
 
     // Generate code
-    code += visitEventsLibrary(document as IDocLibrary, events, comments);
+    code += visitLibrary(document as IDocLibrary, events, getEventsMethodOverloads, comments);
 
     // Ensure the output path exists
     let pathDir = join(outPath, path, 'library')        
@@ -637,7 +587,7 @@ async function generateHooksLibrary(docsPath: string, outPath: string, path: str
     let code = generateHeader(document.name, document.type, kind) + EOL;
 
     // Generate code
-    code += visitHooksLibrary(document as IDocLibrary, hooks, comments);
+    code += visitLibrary(document as IDocLibrary, hooks, getHooksMethodOverloads, comments);
 
     // Ensure the output path exists
     let pathDir = join(outPath, path, 'library')        
