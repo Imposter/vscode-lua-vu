@@ -471,7 +471,6 @@ function visitLibrary(l: IDocLibrary, items: IDocument[], miscGeneratorFunc: (m:
     });
 }
 
-// TODO: See if we can make this read nicer and have a better name. Also apply this code to hooks
 function getEventsMethodOverloads(m: IDocMethod, events: IDocEvent[]): string[] {
     if (m.name != 'Subscribe') return [];
 
@@ -502,11 +501,11 @@ function getEventsMethodOverloads(m: IDocMethod, events: IDocEvent[]): string[] 
                 }
             };
 
-            if (event.params) {
-                if (m.params['context'] == null) {
-                    delete method.params['userData'];
-                }
+            if (m.params['context'] == null) {
+                delete method.params['userData'];
+            }
 
+            if (event.params) {
                 for (let [n, param] of Object.entries(event.params)) {
                     method.params[n] = param;
                 }
@@ -518,46 +517,53 @@ function getEventsMethodOverloads(m: IDocMethod, events: IDocEvent[]): string[] 
         overloads.push(overloadComment);
     }
 
-
     return overloads;
 }
 
+
 function getHooksMethodOverloads(m: IDocMethod, hooks: IDocHook[]): string[] {
+    if (m.name != 'Install') return [];
+
     let overloads = [];
     for (let hook of hooks) {
-        if (m.name != 'Install' || m.params == null || m.params['hookName'] == null || m.params['callback'] == null) continue;
+        // Generate method parameters
+        let overloadMethod: IDocMethod = {
+            name: m.name,
+            params: {
+                self: { type: 'Hooks' },
+                hookName: { type: `"${hook.name}"` },
+                context: { type: 'any' },
+                callback: { type: 'callable' }
+            },
+            returns: { type: 'Hook' }
+        };
 
-        // Generate the overload comment
-        let overloadComment = `---@overload fun(self: Hooks, eventName: '"${hook.name}"'`;
-       
-        // Generate all parameters except callback
-        for (let [n, param] of Object.entries(m.params)) {
-            if (n == 'hookName' || n == 'callback') continue;
-            overloadComment += `, ${n}: ${generateTypeString(param)}`;
+        if (m.params['context'] == null) {
+            delete overloadMethod.params['context'];
         }
 
-        // Generate the callback parameter
-        overloadComment += `, callback: fun(hookCtx: HookContext, `;
-        if (hook.params) {
-            let names = Object.keys(hook.params);
-            for (let i = 0; i < names.length; i++) {
-                let name = names[i];
-                let param = hook.params[name];
+        let overloadComment = generateDocOverload(overloadMethod, (p: IDocParam) => {
+            let method: IDocMethod = {
+                name: "N/A",
+                description: "N/A",
+                params: {
+                    userData: { type: 'any' },
+                    hookCtx: { type: 'HookContext' },
+                }
+            };
 
-                overloadComment += `${name}: ${generateTypeString(param)}`;
-                if (i != names.length - 1) overloadComment += ', ';
+            if (m.params['context'] == null) {
+                delete method.params['userData'];
             }
-        }
-        overloadComment += ')';
-        if (hook.returns) {
-            if (Array.isArray(hook.returns)) {
-                throw new Error(`Multiple returns are not supported for hooks`);
+
+            if (hook.params) {
+                for (let [n, param] of Object.entries(hook.params)) {
+                    method.params[n] = param;
+                }
             }
 
-            overloadComment += `: ${generateTypeString(hook.returns)}`;
-        }
-
-        overloadComment += '): Hook';
+            return method;
+        });
 
         overloads.push(overloadComment);
     }
