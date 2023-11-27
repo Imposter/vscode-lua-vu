@@ -138,6 +138,46 @@ function generateTypeString(t: IDocType, opts?: { nullable?: boolean, default?: 
     return code;
 }
 
+function generateDocFuncType(m: IDocMethod, callableParamToMethodFunc: (p: IDocParam) => IDocMethod | null) {
+    // Generate the overload comment
+    let code = `fun(`;
+
+    // Generate all parameters
+    if (m.params) {
+        let names = Object.keys(m.params);
+        for (let i = 0; i < names.length; i++) {
+            let name = names[i];
+            let param = m.params[name];
+
+            if (param.type == 'callable') {
+                let method = callableParamToMethodFunc(param);
+                if (method == null) {
+                    code += `${name}: ${generateTypeString(param)}`;
+                } else {
+                    code += `${name}: ${generateDocFuncType(method, callableParamToMethodFunc)}`;
+                }
+            } else {
+                code += `${name}: ${generateTypeString(param)}`;
+            }
+
+            if (i != names.length - 1) code += ', ';
+        }
+    }
+
+    // Generate the return parameter
+    if (m.returns) {
+        if (Array.isArray(m.returns)) {
+            throw new Error(`Multiple returns are not supported for func types`);
+        }
+
+        code += '): ' + generateTypeString(m.returns);
+    } else {
+        code += ')';
+    }
+
+    return code;
+}
+
 function generateDocProperty(name: string, p: IDocProperty, comments?: string[]) {
     let code = ``;
 
@@ -204,6 +244,14 @@ function generateDocReturn(returns: IDocType | IDocType[], comments?: string[]) 
         // Generate and add comment for parameter
         code += generateTypeComment(r, { comments: comments });
     }
+
+    return code;
+}
+
+function generateDocOverload(m: IDocMethod, callableParamToMethodFunc: (p: IDocParam) => IDocMethod | null) {
+    let code = `---@overload `;
+
+    code += generateDocFuncType(m, callableParamToMethodFunc);
 
     return code;
 }
@@ -423,37 +471,53 @@ function visitLibrary(l: IDocLibrary, items: IDocument[], miscGeneratorFunc: (m:
     });
 }
 
-// TODO: Create overload doc generating method
+// TODO: See if we can make this read nicer and have a better name. Also apply this code to hooks
 function getEventsMethodOverloads(m: IDocMethod, events: IDocEvent[]): string[] {
+    if (m.name != 'Subscribe') return [];
+
     let overloads = [];
     for (let event of events) {
-        if (m.name != 'Subscribe' || m.params == null || m.params['eventName'] == null || m.params['callback'] == null) continue;
+        // Generate method parameters
+        let overloadMethod: IDocMethod = {
+            name: m.name,
+            params: {
+                self: { type: 'Events' },
+                eventName: { type: `"${event.name}"` },
+                context: { type: 'any' },
+                callback: { type: 'callable' }
+            },
+            returns: { type: 'Event' }
+        };
 
-        // Generate the overload comment
-        let overloadComment = `---@overload fun(self: Events, eventName: '"${event.name}"'`;
-
-        // Generate all parameters except callback
-        for (let [n, param] of Object.entries(m.params)) {
-            if (n == 'eventName' || n == 'callback') continue;
-            overloadComment += `, ${n}: ${generateTypeString(param)}`;
+        if (m.params['context'] == null) {
+            delete overloadMethod.params['context'];
         }
 
-        // Generate the callback parameter
-        overloadComment += `, callback: fun(`;
-        if (event.params) {
-            let names = Object.keys(event.params);
-            for (let i = 0; i < names.length; i++) {
-                let name = names[i];
-                let param = event.params[name];
+        let overloadComment = generateDocOverload(overloadMethod, (p: IDocParam) => {
+            let method: IDocMethod = {
+                name: "N/A",
+                description: "N/A",
+                params: {
+                    userData: { type: 'any' },
+                }
+            };
 
-                overloadComment += `${name}: ${generateTypeString(param)}`;
-                if (i != names.length - 1) overloadComment += ', ';
+            if (event.params) {
+                if (m.params['context'] == null) {
+                    delete method.params['userData'];
+                }
+
+                for (let [n, param] of Object.entries(event.params)) {
+                    method.params[n] = param;
+                }
             }
-        }
-        overloadComment += ')): Event';
+
+            return method;
+        });
 
         overloads.push(overloadComment);
     }
+
 
     return overloads;
 }
@@ -542,24 +606,24 @@ async function readDocumentsInPath(docsPath: string, path: string): Promise<IDoc
     return documents;
 }
 
-async function generateEventsLibrary(docsPath: string, outPath: string, path: string, kind: string, comments?: string[]) {
-    console.log(`Generating ${kind} code for Events library...`);
+async function generateLibrary(docsPath: string, outPath: string, path: string, kind: string, libType: string, miscGeneratorFunc: (m: IDocMethod, items: IDocument[]) => string[], comments?: string[]) {
+    console.log(`Generating ${kind} code for ${libType}s library...`);
 
     // Read document
-    let document = await readDocument(docsPath, join('shared', 'library'), 'Events');
+    let document = await readDocument(docsPath, join('shared', 'library'), `${libType}s`);
 
     if (document.type != 'library') {
         throw new Error(`expected document type library, got ${document.type}`);
     }
 
-    // Read all events
-    let events = (await readDocumentsInPath(docsPath, join(path, 'event'))).filter(d => d.type == 'event') as IDocEvent[];
+    // Read all dependencies
+    let dependencies = (await readDocumentsInPath(docsPath, join(path, libType.toLowerCase()))).filter(d => d.type == libType.toLowerCase());
     
     // Add header
     let code = generateHeader(document.name, document.type, kind) + EOL;
 
     // Generate code
-    code += visitLibrary(document as IDocLibrary, events, getEventsMethodOverloads, comments);
+    code += visitLibrary(document as IDocLibrary, dependencies, miscGeneratorFunc, comments);
 
     // Ensure the output path exists
     let pathDir = join(outPath, path, 'library')        
@@ -567,35 +631,7 @@ async function generateEventsLibrary(docsPath: string, outPath: string, path: st
         await fs.mkdir(pathDir, { recursive: true });
 
     // Write code
-    await fs.writeFile(join(pathDir, `Events.lua`), code);
-}
-
-async function generateHooksLibrary(docsPath: string, outPath: string, path: string, kind: string, comments?: string[]) {
-    console.log(`Generating ${kind} code for Hooks library...`);
-
-    // Read document
-    let document = await readDocument(docsPath, join('shared', 'library'), 'Hooks');
-
-    if (document.type != 'library') {
-        throw new Error(`expected document type library, got ${document.type}`);
-    }
-
-    // Read all events
-    let hooks = (await readDocumentsInPath(docsPath, join(path, 'hook'))).filter(d => d.type == 'hook') as IDocHook[];
-    
-    // Add header
-    let code = generateHeader(document.name, document.type, kind) + EOL;
-
-    // Generate code
-    code += visitLibrary(document as IDocLibrary, hooks, getHooksMethodOverloads, comments);
-
-    // Ensure the output path exists
-    let pathDir = join(outPath, path, 'library')        
-    if (!existsSync(pathDir))
-        await fs.mkdir(pathDir, { recursive: true });
-
-    // Write code
-    await fs.writeFile(join(pathDir, `Hooks.lua`), code);
+    await fs.writeFile(join(pathDir, `${libType}s.lua`), code);
 }
 
 async function generateTypesForDoc(docsPath: string, outPath: string, path: string, doc: string, kind: string, comments?: string[]) {
@@ -640,12 +676,12 @@ export async function generate(docsPath: string, outPath: string) {
     await generateTypes(docsPath, outPath, 'client/library', [], 'Client', [ '`CLIENT ONLY`' ]);
 
     // Generate events
-    await generateEventsLibrary(docsPath, outPath, 'shared', 'Shared', [ '`SERVER/CLIENT`' ]);
-    await generateEventsLibrary(docsPath, outPath, 'server', 'Server', [ '`SERVER ONLY`' ]);
-    await generateEventsLibrary(docsPath, outPath, 'client', 'Client', [ '`CLIENT ONLY`' ]);
+    await generateLibrary(docsPath, outPath, 'shared', 'Shared', 'Event', getEventsMethodOverloads, [ '`SERVER/CLIENT`' ]);
+    await generateLibrary(docsPath, outPath, 'server', 'Server', 'Event', getEventsMethodOverloads, [ '`SERVER ONLY`' ]);
+    await generateLibrary(docsPath, outPath, 'client', 'Client', 'Event', getEventsMethodOverloads, [ '`CLIENT ONLY`' ]);
 
     // Generate hooks
-    await generateHooksLibrary(docsPath, outPath, 'shared', 'Shared', [ '`SERVER/CLIENT`' ]);
-    await generateHooksLibrary(docsPath, outPath, 'server', 'Server', [ '`SERVER ONLY`' ]);
-    await generateHooksLibrary(docsPath, outPath, 'client', 'Client', [ '`CLIENT ONLY`' ]);
+    await generateLibrary(docsPath, outPath, 'shared', 'Shared', 'Hook', getHooksMethodOverloads, [ '`SERVER/CLIENT`' ]);
+    await generateLibrary(docsPath, outPath, 'server', 'Server', 'Hook', getHooksMethodOverloads, [ '`SERVER ONLY`' ]);
+    await generateLibrary(docsPath, outPath, 'client', 'Client', 'Hook', getHooksMethodOverloads, [ '`CLIENT ONLY`' ]);
 }
