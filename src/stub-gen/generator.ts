@@ -390,6 +390,8 @@ function visitClass(context: IVisitorContext, c: IDocClass, comments?: string[])
         // Generate properties
         if (c.properties) {
             for (let [name, prop] of Object.entries(c.properties)) {
+                // Skip properties with static equivalents since they're generated separately
+                if (c.static && c.static[name]) continue;
                 code += generateDocProperty(name, prop) + EOL;
             }
         }
