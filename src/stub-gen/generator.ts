@@ -22,6 +22,13 @@ import { join } from 'path';
 
 const globAsync = promisify(glob);
 
+interface IVisitorContext {
+    miscMethodDocData?: any;
+    miscMethodDocGenerator?: (m: IDocMethod, context?: any) => string[];
+}
+
+let DefaultVisitorContext: IVisitorContext = { miscMethodDocData: null };
+
 function _LT(type: string) {
     if (type == 'int') return 'integer';
     if (type == 'float') return 'number';
@@ -369,7 +376,7 @@ function visitEnum(e: IDocEnum, comments?: string[]): string {
     });
 }
 
-function visitClass(c: IDocClass, comments?: string[]): string {
+function visitClass(context: IVisitorContext, c: IDocClass, comments?: string[]): string {
     return generateSection('Class', () => {
         let code = ``;
 
@@ -427,7 +434,12 @@ function visitClass(c: IDocClass, comments?: string[]): string {
             // Generate code for methods
             if (c.methods) {
                 for (let m of c.methods) {
-                    code += generateMethod(c.name, m, comments, []) + EOL + EOL;
+                    let miscDocs: string[] = [];
+                    if (context.miscMethodDocGenerator) {
+                        miscDocs = context.miscMethodDocGenerator(m, context.miscMethodDocData);
+                    }
+
+                    code += generateMethod(c.name, m, comments, miscDocs) + EOL + EOL;
                 }
             }
             
@@ -439,7 +451,7 @@ function visitClass(c: IDocClass, comments?: string[]): string {
     });
 }
 
-function visitLibrary(l: IDocLibrary, items: IDocument[], miscGeneratorFunc: (m: IDocMethod, items: IDocument[]) => string[], comments?: string[]): string {
+function visitLibrary(context: IVisitorContext, l: IDocLibrary, comments?: string[]): string {
     return generateSection('Library', () => {
         let code = ``;
 
@@ -456,8 +468,11 @@ function visitLibrary(l: IDocLibrary, items: IDocument[], miscGeneratorFunc: (m:
 
             // Generate code for methods
             if (l.methods) {
-                for (let m of l.methods) {                    
-                    let miscDocs = miscGeneratorFunc(m, items);
+                for (let m of l.methods) {
+                    let miscDocs: string[] = [];
+                    if (context.miscMethodDocGenerator) {
+                        miscDocs = context.miscMethodDocGenerator(m, context.miscMethodDocData);
+                    }
 
                     code += generateMethod(l.name, m, comments, miscDocs) + EOL + EOL;
                 }
@@ -571,16 +586,16 @@ function getHooksMethodOverloads(m: IDocMethod, hooks: IDocHook[]): string[] {
     return overloads;
 }
 
-function visit(data: IDocument, kind: string, comments?: string[]): string {
+function visit(context: IVisitorContext, data: IDocument, kind: string, comments?: string[]): string {
     // Add header
     let code = generateHeader(data.name, data.type, kind) + EOL;
 
     if (data.type == 'enum') {
         code += visitEnum(data as IDocEnum, comments);
     } else if (data.type == 'class') {
-        code += visitClass(data as IDocClass, comments);
+        code += visitClass(context, data as IDocClass, comments);
     } else if (data.type == 'library') {
-        code += visitLibrary(data as IDocLibrary, [], (_1, _2) => [], comments);
+        code += visitLibrary(context, data as IDocLibrary, comments);
     } else {
         throw new Error(`unknown document type ${data.type}`);
     }
@@ -629,7 +644,7 @@ async function generateLibrary(docsPath: string, outPath: string, path: string, 
     let code = generateHeader(document.name, document.type, kind) + EOL;
 
     // Generate code
-    code += visitLibrary(document as IDocLibrary, dependencies, miscGeneratorFunc, comments);
+    code += visitLibrary({ miscMethodDocGenerator: miscGeneratorFunc, miscMethodDocData: dependencies }, document as IDocLibrary, comments);
 
     // Ensure the output path exists
     let pathDir = join(outPath, path, 'library')        
@@ -646,7 +661,7 @@ async function generateTypesForDoc(docsPath: string, outPath: string, path: stri
     console.log(`Generating ${kind} code for ${document.name}...`);
 
     // Generate code
-    let code = visit(document, kind, comments);
+    let code = visit({}, document, kind, comments);
 
     // Ensure the output path exists
     let pathDir = join(outPath, path)        
