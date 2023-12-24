@@ -27,7 +27,6 @@ The following are the supported and planned features for this extension:
   - [x] Client libraries/types
 - [x] Support for generating type information for user code
 - [x] [Documentation](https://emmylua.github.io/) support
-- [ ] Support for snippet generation
 
 ## Examples
 

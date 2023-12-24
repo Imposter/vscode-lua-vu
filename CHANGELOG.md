@@ -1,5 +1,14 @@
 # Change Log
 
+## 0.3.6
+
+Pre-release
+
+- Adds support for hooks and events documentation generation [Issue 39](https://github.com/Imposter/vscode-lua-vu/issues/39)
+- Fixes bug when a field has the same name as a static field, both are generated. With the update, only static fields will be created [Issue 24](https://github.com/Imposter/vscode-lua-vu/issues/24)
+- Update packages
+- Document generator code cleanup 
+
 ## 0.3.5
 
 Pre-release
