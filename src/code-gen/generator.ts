@@ -11,6 +11,20 @@ export interface GenerationConfig {
     disable: boolean;
 }
 
+export class SyntaxError extends Error {
+    constructor(public message: string, public location: [number, number]) {
+        super(message);
+        this.location = location;
+    }
+}
+
+export class GeneratorError extends Error {
+    constructor(public message: string, public errors: SyntaxError[]) {
+        super(message);
+        this.errors = errors;
+    }
+}
+
 interface LuaParam {
     name: string;
     type: string;
@@ -119,7 +133,7 @@ class LuaChunkListener implements LuaParserListener {
                         param.type = ps[0]._type.text as string;
                         param.description = ps[0].statDocComment()._content?.text;
                     }
-                }                
+                }
 
                 // Create and store constructor definition
                 this._classes[className].constructors.push({
@@ -215,19 +229,20 @@ async function parseFile(content: string): Promise<{ [name: string]: LuaClass }>
     let parser = new LuaParser(tokenStream);
     parser.buildParseTree = true;
     
-    let errors: string[] = [];
+    let errors: SyntaxError[] = [];
     parser.removeErrorListeners(); // Remove console error listener
     parser.addErrorListener(new class ErrorListener implements ParserErrorListener {
         syntaxError(recognizer: Recognizer<Token, any>, offendingSymbol: Token | undefined, 
             line: number, charPositionInLine: number, msg: string, e: RecognitionException | undefined) {
-            errors.push(`${line}:${charPositionInLine} - ${msg}`);
+            errors.push(new SyntaxError(msg, [line, charPositionInLine]));
         }
     });
 
     // Parse chunk
     let chunk = parser.chunk();
-    if (errors.length > 0)
-        throw new Error(`${errors.length} syntax error(s)` + EOL + EOL + errors.join(EOL));
+    if (errors.length > 0) {
+        throw new GeneratorError(`${errors.length} syntax error(s)` + EOL + EOL + errors.join(EOL), errors);
+    }
 
     let listener = new LuaChunkListener();
     ParseTreeWalker.DEFAULT.walk(listener as ParseTreeListener, chunk);

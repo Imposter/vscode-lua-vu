@@ -1,6 +1,7 @@
 import { 
     window,
     commands,
+    languages,
     workspace,
     ExtensionContext,
     TextDocument,
@@ -13,6 +14,11 @@ import {
     ProgressLocation,
     Uri,
     EndOfLine,
+    Range,
+    Position,
+    DiagnosticSeverity,
+    DiagnosticCollection,
+    Diagnostic,
 } from 'vscode';
 
 import { copy } from 'fs-extra';
@@ -24,7 +30,7 @@ import { EOL, type as osType } from 'os';
 import { throttle } from 'throttle-debounce';
 import { downloadFile as downloadHttpFile } from './utils/downloader';
 import { generate as generateStubs } from './stub-gen/generator';
-import { generate as generateCode, GenerationConfig } from './code-gen/generator';
+import { generate as generateCode, GenerationConfig, SyntaxError, GeneratorError } from './code-gen/generator';
 
 const globAsync = promisify(glob);
 
@@ -48,6 +54,12 @@ interface VsCodeWorkspace {
     readonly folders: VsCodeFolder[];
 }
 
+class CodeGenError extends Error {
+    constructor(public generatorError: GeneratorError, public component: string, public file: string, public userMessage: string) {
+        super(generatorError.message);
+    }
+}
+
 const LIB_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-lib' };
 const TEMPLATE_REPO: GitHubRepository = { user: 'Imposter', name: 'vscode-lua-vu-template' };
 const DOCS_REPO: GitHubRepository = { user: 'VeniceUnleashed', name: 'VU-Docs', branch: 'master' };
@@ -58,6 +70,7 @@ const INTERMEDIATE_BUILD_FREQUENCY = 2; // Hz
 
 // Reference to the ExtensionContext
 var mainContext = {} as ExtensionContext;
+var mainDiagnostics = {} as DiagnosticCollection;
 
 // Utility functions
 function _M(message: string, details?: string[]) {
@@ -254,12 +267,17 @@ async function generateIntermediateCode(folder: WorkspaceFolder, path: string, c
     
     // Get a relative path to the file from the component root
     let relPath = relative(componentPath, path);
+    let filePath = join(componentPath, relPath);
     
     // Get configuration for code generation
     let configuration = workspace.getConfiguration();
     let interfaceConfig = configuration.get<InterfaceConfig>('vua.interface');
     let generationConfig = configuration.get<GenerationConfig>('vua.generation');
     if (!interfaceConfig || !generationConfig) return;
+
+    // Remove any pre-existing diagnostics for the file
+    let fileUri = Uri.file(filePath);
+    mainDiagnostics.delete(fileUri);
     
     try {
         // Generate the code
@@ -269,10 +287,31 @@ async function generateIntermediateCode(folder: WorkspaceFolder, path: string, c
         if (interfaceConfig.showErrors) {
             window.showErrorMessage(`Error analyzing file ${relPath} | ${error}`);
         }
+
+        if (error instanceof GeneratorError) {
+            // Show error if required
+            if (interfaceConfig?.showErrors) {
+                window.showErrorMessage(_M('Failed to build intermediate files', [ 
+                    `File: ${relPath}`, _M(error.message, error.errors.map(e => `${e.location[0]}:${e.location[1]} ${e.message}`))
+                ]), { modal: true });
+            }
+
+            // Show a message in the problems panel
+            let diagnostics: Diagnostic[] = [];
+            for (let syntaxError of error.errors) {
+                let [ line, character ] = syntaxError.location;
+                diagnostics.push({
+                    message: syntaxError.message,
+                    range: new Range(new Position(line, character), new Position(line, character + 1)),
+                    severity: DiagnosticSeverity.Error
+                });
+            }
+
+            mainDiagnostics.set(fileUri, diagnostics);
+        }
     }
 }
 
-// TODO: Extract to temporary locations and return the paths, leave it up to the user to move them
 async function downloadFile(name: string, uri: Uri, outPath: string, extract?: boolean) {
     return await window.withProgress<string>({
         location: ProgressLocation.Notification,
@@ -568,8 +607,11 @@ async function rebuildIntermediate(path?: string) {
                     progress.report({ message: 'Done building intermediate types for folder' });
                     resolve();
                 } catch (error) {
-                    // If a failure happened while generating code, report it and return
-                    reject(`An error occurred while building intermediate types for component ${component}. IntelliSense may not work correctly. File: ${file}. ${_E(error)}`);
+                    if (error instanceof GeneratorError) {
+                        reject(new CodeGenError(error, component, file, 'An error occurred while building intermediate types'));
+                    }
+
+                    reject(error);
                 }
             });
         });
@@ -641,6 +683,10 @@ export async function activate(context: ExtensionContext) {
         return;
     }
 
+    // Get the configuration
+    let configuration = workspace.getConfiguration();
+    let interfaceConfig = configuration.get<InterfaceConfig>('vua.interface');
+
     // Store extension context
     mainContext = context;
 
@@ -663,6 +709,9 @@ export async function activate(context: ExtensionContext) {
     // Show status bar item
     statusBarItem.show();
 
+    // Create diagnostics collection
+    mainDiagnostics = languages.createDiagnosticCollection('vua');
+
     // Check if the workspace contains intermediate files, if it does, rebuild them
     if (workspace.workspaceFile) {
         try {
@@ -679,7 +728,6 @@ export async function activate(context: ExtensionContext) {
                 await prepareContent();
             }
         } catch (error) {
-            // TODO: Show console errors instead of modals
             console.error(error);
             window.showErrorMessage(_M('Failed to download content', [ _E(error) ]), { modal: true });
         }
@@ -687,9 +735,26 @@ export async function activate(context: ExtensionContext) {
         try {
             await rebuildIntermediate();
         } catch (error) {
-            // TODO: Show console errors instead of modals
-            console.error(error);
-            window.showErrorMessage(_M('Failed to build intermediate files', [ _E(error) ]), { modal: true });
+            if (error instanceof CodeGenError) {
+                // Show error if required
+                if (interfaceConfig?.showErrors) {
+                    window.showErrorMessage(_M('Failed to build intermediate files', [ `File: ${error.file}`, _E(error.generatorError) ]), { modal: true });
+                }
+
+                // Show a message in the problems panel
+                let uri = Uri.file(join(error.file));
+                let diagnostics: Diagnostic[] = [];
+                for (let syntaxError of error.generatorError.errors) {
+                    let [ line, character ] = syntaxError.location;
+                    diagnostics.push({
+                        message: syntaxError.message,
+                        range: new Range(new Position(line, character), new Position(line, character + 1)),
+                        severity: DiagnosticSeverity.Error
+                    });
+                }
+
+                mainDiagnostics.set(uri, diagnostics);
+            }
         }
     }
 
