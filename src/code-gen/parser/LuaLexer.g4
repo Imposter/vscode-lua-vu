@@ -240,6 +240,7 @@ mode DOC_MODE;
 
 DOC_CLASS: 'class';
 DOC_FIELD: 'field';
+DOC_OVERLOAD: 'overload';
 DOC_PARAM: 'param';
 DOC_RETURN: 'return';
 DOC_TYPE: 'type';

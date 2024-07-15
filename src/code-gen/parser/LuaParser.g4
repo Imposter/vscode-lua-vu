@@ -80,6 +80,10 @@ statDocField
     : statDocStart DOC_FIELD name=DOC_NAME type=expDoc statDocComment
     ;
 
+statDocOverload
+    : statDocStart DOC_OVERLOAD func=expDocFunc statDocComment
+    ;
+
 statDocParam
     : statDocStart DOC_PARAM name=DOC_NAME type=expDoc statDocComment
     ;
@@ -106,7 +110,7 @@ expDoc
     ;
 
 expDocFunc
-    : DOC_FUNC DOC_PAREN_OPEN expDocFuncList* DOC_PAREN_CLOSE
+    : DOC_FUNC DOC_PAREN_OPEN expDocFuncList* DOC_PAREN_CLOSE (DOC_COLON returnType=expDoc)?
     ;
 
 expDocFuncList
@@ -143,7 +147,7 @@ statClassDef
     ;
 
 statClass
-    : docDesc=statDocDesc* docClass=statDocClass? docFields=statDocField* def=statClassDef
+    : docDesc=statDocDesc* docClass=statDocClass? (docField=statDocField | docOverload=statDocOverload)*  def=statClassDef
     ;
 
 statFunctionDef
@@ -151,7 +155,7 @@ statFunctionDef
     ;
 
 statFunction
-    : docDesc=statDocDesc* docParams=statDocParam* docVarArg=statDocVarArg? docReturn=statDocReturn? def=statFunctionDef
+    : docDesc=statDocDesc* docParams=statDocParam* docVarArg=statDocVarArg? docReturn=statDocReturn? docOverloads=statDocOverload* def=statFunctionDef
     ;
 
 statFunctionCall
