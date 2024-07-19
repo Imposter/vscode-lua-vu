@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.3.7
+
+Pre-release
+
+- Adds support for overloads in lexer/parser for classes and functions
+- Pushes syntax and parser errors to the VS Code Problems window rather than showing an error window
+- Improves error handling for code generator
+
 ## 0.3.6
 
 Pre-release
